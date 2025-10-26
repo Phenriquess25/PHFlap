@@ -398,7 +398,7 @@ Encontrou um bug? Tem uma sugestão?
 
 **PHFlap** - Teoria da Computação na prática 🚀
 
-Feito com ❤️ por [Phenriquess25](https://github.com/Phenriquess25)
+Feito por [Phenriquess25](https://github.com/Phenriquess25)
 
 [⬆ Voltar ao topo](#phflap---editor-e-simulador-de-modelos-computacionais)
 
