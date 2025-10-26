@@ -1,10 +1,12 @@
 import { useTMBlocksStore, BLOCK } from '@state/tmBlocksStore'
 import { useMemo, useRef, useState, useCallback } from 'react'
 import MultiInputPanel from './MultiInputPanel'
+import { usePrompt } from './PromptModal'
 
 type TransitionKey = string
 
 export default function TMBlocksEditor() {
+  const { prompt, PromptComponent } = usePrompt()
   const {
     machine,
     positions,
@@ -60,15 +62,34 @@ export default function TMBlocksEditor() {
     }
   }, [mode, addState, setMode, setSelected, zoom, pan])
 
-  const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
 
-    if (mode === 'addTransition' && tempFrom) {
-      const read = window.prompt(`Símbolo a ler (ou ${BLOCK} para branco):`, BLOCK)
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      const read = await prompt(`Símbolo a ler (ou ${BLOCK} para branco):`, BLOCK)
       if (read === null) return
-      const write = window.prompt(`Símbolo a escrever (ou ${BLOCK} para branco):`, BLOCK)
+      const write = await prompt(`Símbolo a escrever (ou ${BLOCK} para branco):`, BLOCK)
       if (write === null) return
-      const moveStr = window.prompt('Direção (L=esquerda, R=direita, S=parado):', 'R')
+      const moveStr = await prompt('Direção (L=esquerda, R=direita, S=parado):', 'R')
+      if (moveStr === null) return
+
+      addTransition({
+        from: selected,
+        to: id,
+        read,
+        write,
+        move: (moveStr.toUpperCase() === 'L' ? 'L' : moveStr.toUpperCase() === 'S' ? 'S' : 'R')
+      })
+      return
+    }
+
+    if (mode === 'addTransition' && tempFrom) {
+      const read = await prompt(`Símbolo a ler (ou ${BLOCK} para branco):`, BLOCK)
+      if (read === null) return
+      const write = await prompt(`Símbolo a escrever (ou ${BLOCK} para branco):`, BLOCK)
+      if (write === null) return
+      const moveStr = await prompt('Direção (L=esquerda, R=direita, S=parado):', 'R')
       if (moveStr === null) return
 
       addTransition({
@@ -88,7 +109,7 @@ export default function TMBlocksEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, setTempFrom, zoom, pan])
+  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, setTempFrom, zoom, pan, selected])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -590,6 +611,7 @@ export default function TMBlocksEditor() {
           )}
         </div>
       </div>
+      {PromptComponent}
     </div>
   )
 }

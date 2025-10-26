@@ -1,10 +1,12 @@
 import { useMooreStore } from '@state/mooreStore'
 import { useMemo, useRef, useState, useCallback } from 'react'
 import MultiInputPanel from './MultiInputPanel'
+import { usePrompt } from './PromptModal'
 
 type TransitionKey = string
 
 export default function MooreEditor() {
+  const { prompt, PromptComponent } = usePrompt()
   const {
     machine,
     positions,
@@ -62,12 +64,21 @@ export default function MooreEditor() {
     }
   }, [mode, addState, setMode, setSelected, zoom, pan])
 
-  const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      const input = await prompt('Símbolos de entrada (separados por vírgula):')
+      if (input !== null && input.trim()) {
+        addTransition({ from: selected, to: id, input })
+      }
+      return
+    }
+    
     if (mode === 'addTransition' && tempFrom) {
-      const input = window.prompt('Símbolos de entrada (separados por vírgula):')
-      if (input) {
+      const input = await prompt('Símbolos de entrada (separados por vírgula):')
+      if (input !== null && input.trim()) {
         addTransition({ from: tempFrom, to: id, input })
       }
       setMode('select')
@@ -79,7 +90,7 @@ export default function MooreEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, zoom, pan])
+  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, zoom, pan, selected])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -560,7 +571,11 @@ export default function MooreEditor() {
                   📤 Definir Saída
                 </button>
                 <button
-                  onClick={() => beginTransition(selected)}
+                  onClick={() => {
+                    console.log('🔘 MooreEditor - Botão Criar Transição clicado', { selected, tempFrom, mode })
+                    beginTransition(selected)
+                    console.log('🔘 MooreEditor - beginTransition chamado')
+                  }}
                   style={{ padding: '6px', fontSize: 12, cursor: 'pointer', background: '#fff', border: '1px solid #ddd', borderRadius: 4 }}
                 >
                   → Criar Transição
@@ -606,6 +621,7 @@ export default function MooreEditor() {
           )}
         </div>
       </div>
+      {PromptComponent}
     </div>
   )
 }

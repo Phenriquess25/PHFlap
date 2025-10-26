@@ -5,7 +5,7 @@ type Props = {
   onClear: () => void;
 };
 
-export default memo(function MooreToolbar({ onBack, onClear }: Props) {
+export default memo(function MooreToolbar({ onClear }: Props) {
   return (
     <div
       style={{

@@ -3,10 +3,12 @@ import { useMemo, useRef, useState, useCallback } from 'react'
 import { TuringMachine, TMTransition, Direction, BLANK } from '@model/turing'
 import { StateId, Position } from '@model/automata'
 import MultiInputPanel from './MultiInputPanel'
+import { usePrompt } from './PromptModal'
 
 type TransitionKey = string
 
 export default function TMEditor() {
+  const { prompt, PromptComponent } = usePrompt()
   const { tm, positions, setTM, setPositions } = useTMStore()
   
   const [selected, setSelected] = useState<StateId | null>(null)
@@ -88,12 +90,12 @@ export default function TMEditor() {
       })
     }
 
-    const addTransition = (from: StateId, to: StateId) => {
-      const read = window.prompt('Símbolo a ler (ou _ para branco):')
+    const addTransition = async (from: StateId, to: StateId) => {
+      const read = await prompt('Símbolo a ler (ou _ para branco):')
       if (read === null) return
-      const write = window.prompt('Símbolo a escrever (ou _ para branco):')
+      const write = await prompt('Símbolo a escrever (ou _ para branco):')
       if (write === null) return
-      const moveStr = window.prompt('Direção (L=esquerda, R=direita, S=parado):')
+      const moveStr = await prompt('Direção (L=esquerda, R=direita, S=parado):', 'R')
       if (moveStr === null) return
       const move = (moveStr.toUpperCase() === 'L' ? 'L' : moveStr.toUpperCase() === 'S' ? 'S' : 'R') as Direction
       const newT: TMTransition = {
@@ -194,11 +196,17 @@ export default function TMEditor() {
     }
   }, [mode, addState, setSelected, zoom, pan])
 
-  const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      await addTransition(selected, id)
+      return
+    }
+    
     if (mode === 'addTransition' && tempFrom) {
-        addTransition(tempFrom, id)
+      await addTransition(tempFrom, id)
       setMode('select')
       setTempFrom(null)
       return
@@ -209,7 +217,7 @@ export default function TMEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-    }, [mode, tempFrom, positions, zoom, pan])
+  }, [mode, tempFrom, positions, zoom, pan, selected, addTransition, setMode, setTempFrom, setSelected])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -722,6 +730,7 @@ export default function TMEditor() {
           )}
         </div>
       </div>
+      {PromptComponent}
     </div>
   )
 }

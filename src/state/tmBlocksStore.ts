@@ -78,17 +78,14 @@ interface TMBlocksState {
 export const useTMBlocksStore = create<TMBlocksState>((set, get) => ({
   machine: {
     type: 'TM_BLOCKS',
-    states: ['q0', 'q1'],
-    alphabet: ['0', '1'],
-    tapeAlphabet: ['0', '1', BLOCK],
-    start: 'q0',
-    accept: ['q1'],
+    states: [],
+    alphabet: [],
+    tapeAlphabet: [BLOCK],
+    start: '',
+    accept: [],
     transitions: []
   },
-  positions: {
-    q0: { x: 200, y: 200 },
-    q1: { x: 400, y: 200 }
-  },
+  positions: {},
   selected: null,
   tempFrom: null,
   simulation: {

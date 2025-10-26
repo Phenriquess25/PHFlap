@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { ModelType } from './types/models'
 
 export default function App() {
-  const [activeModel, setActiveModel] = useState<ModelType | null>('FA') // Inicia direto no FA
+  const [activeModel, setActiveModel] = useState<ModelType | null>(null) // Inicia na tela de seleção
 
   // Se nenhum modelo está ativo, mostrar tela inicial
   if (!activeModel) {

@@ -28,30 +28,17 @@ type Store = {
 
 const exampleNFA: NFA = {
   type: 'NFA',
-  states: ['q0', 'q1', 'q2'],
-  alphabet: ['a', 'b', 'c'],
-  start: 'q0',
-  accept: ['q2'],
-  transitions: {
-    // Múltiplas transições de q0 para q1 (a, b, c)
-    q0: { 
-      a: ['q1'], 
-      b: ['q1'], 
-      c: ['q1']
-    },
-    // q1 tem loop com 'a' e vai para q2 com 'b'
-    q1: { 
-      a: ['q1'],  // loop
-      b: ['q2'] 
-    },
-    q2: {},
-  },
+  states: [],
+  alphabet: [],
+  start: '',
+  accept: [],
+  transitions: {},
 }
 
 export const useAutomataStore = create<Store>((set) => ({
   fa: exampleNFA,
   trace: null,
-  positions: { q0: { x: 120, y: 120 }, q1: { x: 320, y: 120 }, q2: { x: 320, y: 260 } },
+  positions: {},
   mode: 'select',
   selected: null,
   tempFrom: null,
@@ -166,19 +153,25 @@ export const useAutomataStore = create<Store>((set) => ({
     const accept = fa.accept.includes(id) ? fa.accept.filter(s => s !== id) : [...fa.accept, id]
     return { ...state, fa: { ...(fa as any), accept } }
   }),
-  beginTransition: (from) => set({ tempFrom: from, mode: 'addTransition' }),
+  beginTransition: (from) => {
+    set({ tempFrom: from, mode: 'addTransition' })
+  },
   addTransitionTo: (to, symbol) => set(state => {
     const fa = state.fa
-    if (!fa) return state
-    if (!symbol) return { ...state, tempFrom: null }
-    const sym = symbol === 'e' ? EPSILON : symbol
+    if (!fa) {
+      return state
+    }
+    if (!symbol) {
+      return { ...state, tempFrom: null };
+    }
+    const sym = symbol === 'e' ? EPSILON : symbol;
     if (!fa.alphabet.includes(sym) && sym !== EPSILON) {
       // expand alphabet for non-epsilon
-      (fa as any).alphabet = [...fa.alphabet, sym]
+      (fa as any).alphabet = [...fa.alphabet, sym];
     }
     if (fa.type === 'NFA') {
-      const row = fa.transitions[state.tempFrom! ] || {}
-      const arr = (row[sym] as StateId[] | undefined) ?? []
+      const row = fa.transitions[state.tempFrom! ] || {};
+      const arr = (row[sym] as StateId[] | undefined) ?? [];
       const next: NFA = {
         ...fa,
         transitions: {

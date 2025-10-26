@@ -1,10 +1,12 @@
 import { usePDAStore } from '@state/pdaStore'
 import { useMemo, useRef, useState, useCallback } from 'react'
 import MultiInputPanel from './MultiInputPanel'
+import { usePrompt } from './PromptModal'
 
 type TransitionKey = string
 
 export default function PDAEditor() {
+  const { prompt, PromptComponent } = usePrompt()
   const {
     machine,
     positions,
@@ -63,23 +65,43 @@ export default function PDAEditor() {
     }
   }, [mode, addState, setSelected, zoom, pan])
 
-  const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     
-    if (mode === 'addTransition' && tempFrom) {
-      const input = window.prompt('Símbolo de entrada (ou ε para vazio):') || ''
-      const stackPop = window.prompt('Símbolo a desempilhar (ou ε para nada):') || ''
-      const stackPush = window.prompt('Símbolo(s) a empilhar (ou ε para nada):') || ''
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      const input = await prompt('Símbolo de entrada (ou ε para vazio):')
+      if (input === null) return
+      const stackPop = await prompt('Símbolo a desempilhar (ou ε para nada):')
+      if (stackPop === null) return
+      const stackPush = await prompt('Símbolo(s) a empilhar (ou ε para nada):')
+      if (stackPush === null) return
       
-      if (input !== null) {
-        addTransition({
-          from: tempFrom,
-          to: id,
-          input: input === 'e' ? 'ε' : input,
-          stackPop: stackPop === 'e' ? 'ε' : stackPop,
-          stackPush: stackPush === 'e' ? 'ε' : stackPush
-        })
-      }
+      addTransition({
+        from: selected,
+        to: id,
+        input: input === 'e' ? 'ε' : input,
+        stackPop: stackPop === 'e' ? 'ε' : stackPop,
+        stackPush: stackPush === 'e' ? 'ε' : stackPush
+      })
+      return
+    }
+    
+    if (mode === 'addTransition' && tempFrom) {
+      const input = await prompt('Símbolo de entrada (ou ε para vazio):')
+      if (input === null) return
+      const stackPop = await prompt('Símbolo a desempilhar (ou ε para nada):')
+      if (stackPop === null) return
+      const stackPush = await prompt('Símbolo(s) a empilhar (ou ε para nada):')
+      if (stackPush === null) return
+      
+      addTransition({
+        from: tempFrom,
+        to: id,
+        input: input === 'e' ? 'ε' : input,
+        stackPop: stackPop === 'e' ? 'ε' : stackPop,
+        stackPush: stackPush === 'e' ? 'ε' : stackPush
+      })
       setMode('select')
       setTempFrom(null)
       return
@@ -90,7 +112,7 @@ export default function PDAEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-  }, [mode, tempFrom, positions, setSelected, addTransition, setTempFrom, zoom, pan])
+  }, [mode, tempFrom, positions, setSelected, addTransition, setTempFrom, zoom, pan, selected, setMode])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -613,6 +635,7 @@ export default function PDAEditor() {
           )}
         </div>
       </div>
+      {PromptComponent}
     </div>
   )
 }

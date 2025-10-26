@@ -1,10 +1,12 @@
 import { useMealyStore } from '@state/mealyStore'
 import { useMemo, useRef, useState, useCallback } from 'react'
 import MultiInputPanel from './MultiInputPanel'
+import { usePrompt } from './PromptModal'
 
 type TransitionKey = string
 
 export default function MealyEditor() {
+  const { prompt, PromptComponent } = usePrompt()
   const {
     machine,
     positions,
@@ -61,13 +63,25 @@ export default function MealyEditor() {
     }
   }, [mode, addState, setMode, setSelected, zoom, pan])
 
-  const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     
-    if (mode === 'addTransition' && tempFrom) {
-      const input = window.prompt('Símbolos de entrada (separados por vírgula):')
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      const input = await prompt('Símbolos de entrada (separados por vírgula):')
       if (input !== null && input.trim()) {
-        const output = window.prompt('Símbolos de saída (separados por vírgula):')
+        const output = await prompt('Símbolos de saída (separados por vírgula):')
+        if (output !== null && output.trim()) {
+          addTransition({ from: selected, to: id, input, output })
+        }
+      }
+      return
+    }
+    
+    if (mode === 'addTransition' && tempFrom) {
+      const input = await prompt('Símbolos de entrada (separados por vírgula):')
+      if (input !== null && input.trim()) {
+        const output = await prompt('Símbolos de saída (separados por vírgula):')
         if (output !== null && output.trim()) {
           addTransition({ from: tempFrom, to: id, input, output })
         }
@@ -81,7 +95,7 @@ export default function MealyEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, beginTransition, zoom, pan])
+  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, zoom, pan, selected, prompt])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -580,6 +594,7 @@ export default function MealyEditor() {
           )}
         </div>
       </div>
+      {PromptComponent}
     </div>
   )
 }

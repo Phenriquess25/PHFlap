@@ -9,12 +9,19 @@
   },
   "private": false,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest --run",
-    "test:ui": "vitest"
+    "test:ui": "vitest",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:portable": "npm run build && electron-builder --win portable",
+    "electron:build:dir": "npm run build && electron-builder --win --dir",
+    "dist": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -25,9 +32,14 @@
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^38.4.0",
+    "electron-builder": "^26.0.12",
+    "jsdom": "^24.1.0",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vitest": "^2.1.2",
-    "jsdom": "^24.1.0"
+    "wait-on": "^9.0.1"
   }
 }

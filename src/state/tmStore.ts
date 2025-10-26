@@ -35,8 +35,8 @@ export const useTMStore = create<TMStore>((set) => ({
   setResult: (result) => set({ result }),
   
   createNewTM: () => set({ 
-    tm: { ...emptyTM, states: ['q0'], start: 'q0' },
-    positions: { q0: { x: 300, y: 200 } },
+    tm: { ...emptyTM, states: [], start: '' },
+    positions: {},
     result: null
   }),
   

@@ -12,13 +12,49 @@ export default function HomeScreen({ onSelectModel }: HomeScreenProps) {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      padding: '2rem 1rem'
+      padding: '2rem 1rem',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '2rem', color: '#e2e8f0' }}>
-        <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0', fontWeight: 'bold', color: '#fff' }}>
-          PHFlap
-        </h1>
+      {/* Marca d'água de fundo */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        opacity: 0.03,
+        pointerEvents: 'none',
+        zIndex: 0
+      }}>
+        <img 
+          src="/phflap-logo.svg" 
+          alt="PHFlap Watermark" 
+          style={{ 
+            width: '800px', 
+            height: '800px',
+            filter: 'invert(1)'
+          }} 
+        />
+      </div>
+
+      {/* Conteúdo principal */}
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem', color: '#e2e8f0' }}>
+          {/* Logo */}
+          <img 
+            src="/phflap-logo.svg" 
+            alt="PHFlap Logo" 
+            style={{ 
+              width: '150px', 
+              height: '150px', 
+              marginBottom: '1rem',
+              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))'
+            }} 
+          />
+          <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0', fontWeight: 'bold', color: '#fff' }}>
+            PHFlap
+          </h1>
         <p style={{ fontSize: '1rem', opacity: 0.9, margin: '0.25rem 0' }}>
           Editor e Simulador de Modelos Computacionais
         </p>
@@ -116,6 +152,7 @@ export default function HomeScreen({ onSelectModel }: HomeScreenProps) {
           </a>
         </p>
       </div>
+      </div> {/* Fecha div do conteúdo principal */}
     </div>
   )
 }

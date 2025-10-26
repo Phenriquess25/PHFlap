@@ -33,15 +33,15 @@ interface MultiTMStore {
 export const useMultiTMStore = create<MultiTMStore>((set, get) => ({
   machine: {
     type: 'MULTI_TM',
-    states: ['q0'],
-    alphabet: ['0', '1'],
-    tapeAlphabet: ['0', '1', BLANK],
+    states: [],
+    alphabet: [],
+    tapeAlphabet: [BLANK],
     tapeCount: 2,
-    start: 'q0',
+    start: '',
     accept: [],
     transitions: []
   },
-  positions: { q0: { x: 400, y: 300 } },
+  positions: {},
   selected: null,
   tempFrom: null,
   simulation: {

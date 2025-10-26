@@ -1,0 +1,41 @@
+{
+  "productName": "PHFlap",
+  "appId": "br.ufal.ic.phflap",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "electron/main.cjs"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "PHFlap-${version}-Portable.${ext}",
+    "signAndEditExecutable": false
+  },
+  "portable": {
+    "artifactName": "PHFlap-${version}-Portable.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "public/icon.png",
+    "category": "Education",
+    "artifactName": "PHFlap-${version}.${ext}"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "public/icon.icns",
+    "category": "public.app-category.education",
+    "artifactName": "PHFlap-${version}.${ext}"
+  }
+}

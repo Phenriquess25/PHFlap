@@ -38,16 +38,16 @@ interface MealyStore {
 
 const initialMachine: MealyMachine = {
   type: 'MEALY',
-  states: ['q0'],
-  alphabet: ['a', 'b'],
-  outputAlphabet: ['x', 'y'],
-  start: 'q0',
+  states: [],
+  alphabet: [],
+  outputAlphabet: [],
+  start: '',
   transitions: []
 }
 
 export const useMealyStore = create<MealyStore>((set, get) => ({
   machine: initialMachine,
-  positions: { q0: { x: 400, y: 300 } },
+  positions: {},
   selected: null,
   tempFrom: null,
   mode: 'select',

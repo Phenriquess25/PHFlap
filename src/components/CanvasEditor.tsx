@@ -1,6 +1,6 @@
 import { useAutomataStore } from '@state/store'
 import { EPSILON, StateId } from '../types/automata'
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { simulate } from '@core/algorithms/simulate'
 import { determinize } from '@core/algorithms/determinize'
 import { removeEpsilon } from '@core/algorithms/epsilonRemoval'
@@ -42,6 +42,21 @@ export default function CanvasEditor() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  
+  // Resize states for results panel
+  const [resultsHeight, setResultsHeight] = useState(200)
+  const [isResizingResults, setIsResizingResults] = useState(false)
+  const resizeResultsStartY = useRef(0)
+  const resizeResultsStartHeight = useRef(0)
+  
+  // Modal states for input dialogs (replacing window.prompt)
+  const [showInputModal, setShowInputModal] = useState(false)
+  const [inputModalConfig, setInputModalConfig] = useState<{
+    title: string
+    message: string
+    defaultValue: string
+    onSubmit: (value: string) => void
+  } | null>(null)
 
   const transitions = useMemo(() => {
     if (!fa) return new Map<string, { from: string; to: string; symbols: string[] }>()
@@ -94,23 +109,70 @@ export default function CanvasEditor() {
   }, [mode, addState, setMode, setSelected, zoom, pan])
 
   const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+    e.stopPropagation();
+    
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      setInputModalConfig({
+        title: 'Criar Transição',
+        message: "Digite os símbolos da transição separados por vírgula.\nUse 'e' para ε (epsilon).\nExemplo: a,b ou e",
+        defaultValue: '',
+        onSubmit: (input) => {
+          if (input) {
+            const symbols = input.split(',').map(s => s.trim()).filter(s => s);
+            for (const sym of symbols) {
+              addTransitionTo(id, sym === 'e' ? EPSILON : sym);
+            }
+          }
+          setShowInputModal(false);
+        }
+      });
+      setShowInputModal(true);
+      beginTransition(selected);
+      return;
+    }
+    
+    // Atalho: Ctrl+clique no mesmo estado para loop
+    if (e.ctrlKey && selected === id) {
+      setInputModalConfig({
+        title: 'Criar Transição (Loop)',
+        message: "Digite os símbolos para o LOOP (auto-transição):\nUse 'e' para ε (epsilon).\nExemplo: a,b ou e",
+        defaultValue: '',
+        onSubmit: (input) => {
+          if (input) {
+            const symbols = input.split(',').map(s => s.trim()).filter(s => s);
+            for (const sym of symbols) {
+              addTransitionTo(id, sym === 'e' ? EPSILON : sym);
+            }
+          }
+          setShowInputModal(false);
+        }
+      });
+      setShowInputModal(true);
+      beginTransition(selected);
+      return;
+    }
     
     if (mode === 'addTransition' && tempFrom) {
-      const input = window.prompt(
-        tempFrom === id 
+      setInputModalConfig({
+        title: 'Criar Transição',
+        message: tempFrom === id 
           ? "Digite os símbolos para o LOOP (auto-transição):\nUse 'e' para ε (epsilon).\nExemplo: a,b ou e"
           : "Digite os símbolos da transição separados por vírgula.\nUse 'e' para ε (epsilon).\nExemplo: a,b ou e",
-        ''
-      )
-      if (input !== null) {
-        const symbols = input.split(',').map(s => s.trim()).filter(s => s)
-        for (const sym of symbols) {
-          addTransitionTo(id, sym === 'e' ? EPSILON : sym)
+        defaultValue: '',
+        onSubmit: (input) => {
+          if (input) {
+            const symbols = input.split(',').map(s => s.trim()).filter(s => s);
+            for (const sym of symbols) {
+              addTransitionTo(id, sym === 'e' ? EPSILON : sym);
+            }
+          }
+          setMode('select');
+          setShowInputModal(false);
         }
-      }
-      setMode('select')
-      return
+      });
+      setShowInputModal(true);
+      return;
     }
     
     setSelected(id)
@@ -118,7 +180,7 @@ export default function CanvasEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-  }, [mode, tempFrom, positions, setSelected, addTransitionTo, setMode, zoom, pan])
+  }, [mode, tempFrom, positions, setSelected, addTransitionTo, setMode, zoom, pan, setInputModalConfig, setShowInputModal, selected, beginTransition])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -158,13 +220,21 @@ export default function CanvasEditor() {
   }, [])
 
   const onTransitionDoubleClick = useCallback((from: string, to: string, symbols: string[], e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newSymbol = window.prompt('Editar símbolo da transição:', symbols[0] || '')
-    if (newSymbol !== null && newSymbol.trim() !== '') {
-      editTransition(from, to, symbols, [newSymbol.trim()])
-      setEditingTransition(null)
-    }
-  }, [editTransition])
+    e.stopPropagation();
+    setInputModalConfig({
+      title: 'Editar Transição',
+      message: 'Editar símbolo da transição:',
+      defaultValue: symbols[0] || '',
+      onSubmit: (newSymbol) => {
+        if (newSymbol && newSymbol.trim() !== '') {
+          editTransition(from, to, symbols, [newSymbol.trim()]);
+          setEditingTransition(null);
+        }
+        setShowInputModal(false);
+      }
+    });
+    setShowInputModal(true);
+  }, [editTransition, setInputModalConfig, setShowInputModal])
 
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
@@ -179,6 +249,36 @@ export default function CanvasEditor() {
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
     }
   }, [pan])
+
+  // Handlers for results panel resize
+  const handleResultsResizeStart = (e: React.MouseEvent) => {
+    setIsResizingResults(true)
+    resizeResultsStartY.current = e.clientY
+    resizeResultsStartHeight.current = resultsHeight
+  }
+
+  const handleResultsResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizingResults) return
+    const delta = e.clientY - resizeResultsStartY.current
+    const newHeight = Math.max(100, Math.min(600, resizeResultsStartHeight.current + delta))
+    setResultsHeight(newHeight)
+  }, [isResizingResults, resultsHeight])
+
+  const handleResultsResizeEnd = useCallback(() => {
+    setIsResizingResults(false)
+  }, [])
+
+  // Event listeners for results resize
+  useEffect(() => {
+    if (isResizingResults) {
+      window.addEventListener('mousemove', handleResultsResizeMove)
+      window.addEventListener('mouseup', handleResultsResizeEnd)
+      return () => {
+        window.removeEventListener('mousemove', handleResultsResizeMove)
+        window.removeEventListener('mouseup', handleResultsResizeEnd)
+      }
+    }
+  }, [isResizingResults, handleResultsResizeMove, handleResultsResizeEnd])
 
   if (!fa) return <div style={{ padding: 12 }}>Nenhum autômato</div>
 
@@ -409,7 +509,7 @@ export default function CanvasEditor() {
           />
         </div>
 
-        <div style={{ flex: 1, overflow: 'auto', borderBottom: '1px solid #ddd', background: '#fff', minHeight: 100 }}>
+        <div style={{ height: resultsHeight, overflow: 'auto', borderBottom: '1px solid #ddd', background: '#fff' }}>
           <div style={{ padding: 8, background: '#f6f8fa', borderBottom: '1px solid #eee', position: 'sticky', top: 0, zIndex: 1 }}>
             <strong style={{ fontSize: 12 }}>{trace?.title ?? '📋 Resultado da Simulação'}</strong>
           </div>
@@ -420,7 +520,29 @@ export default function CanvasEditor() {
           </ol>
         </div>
 
-        <div style={{ padding: 12, overflow: 'auto', background: '#f9f9f9' }}>
+        {/* Resize Handle for Results */}
+        <div
+          onMouseDown={handleResultsResizeStart}
+          style={{
+            width: '100%',
+            height: 8,
+            background: isResizingResults ? '#2196f3' : '#e0e0e0',
+            cursor: 'ns-resize',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 10,
+            color: '#666',
+            userSelect: 'none',
+            transition: 'background 0.2s',
+            borderBottom: '1px solid #ddd'
+          }}
+          title="Arraste para redimensionar resultados"
+        >
+          ⋮⋮⋮
+        </div>
+
+        <div style={{ padding: 12, overflow: 'auto', background: '#f9f9f9', flex: 1 }}>
           <h4 style={{ margin: '0 0 8px 0' }}>🔧 Ferramentas</h4>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -583,7 +705,9 @@ export default function CanvasEditor() {
                 <button onClick={() => toggleAccept(selected)} style={{ padding: '5px', fontSize: 11, cursor: 'pointer' }}>
                   {fa.accept.includes(selected) ? '⭕ Remover Final' : '✅ Marcar Final'}
                 </button>
-                <button onClick={() => beginTransition(selected)} style={{ padding: '5px', fontSize: 11, cursor: 'pointer' }}>→ Criar Transição</button>
+                <button onClick={() => {
+                  beginTransition(selected);
+                }} style={{ padding: '5px', fontSize: 11, cursor: 'pointer' }}>→ Criar Transição</button>
                 <button onClick={() => { removeState(selected); setSelected(null); }} style={{ padding: '5px', fontSize: 11, cursor: 'pointer', color: 'red' }}>🗑️ Remover</button>
               </div>
             </div>
@@ -600,20 +724,25 @@ export default function CanvasEditor() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <button
                   onClick={() => {
-                    const input = window.prompt(
-                      "Edite os símbolos (separados por vírgula).\nUse 'e' para ε.\nExemplo: a,b,e",
-                      editingTransition.symbols.map(s => s === EPSILON ? 'e' : s).join(',')
-                    )
-                    if (input !== null && input.trim()) {
-                      const newSymbols = input.split(',').map(s => s.trim()).filter(s => s).map(s => s === 'e' ? EPSILON : s)
-                      editTransition(
-                        editingTransition.from,
-                        editingTransition.to,
-                        editingTransition.symbols,
-                        newSymbols
-                      )
-                      setEditingTransition(null)
-                    }
+                    setInputModalConfig({
+                      title: 'Editar Símbolos da Transição',
+                      message: "Edite os símbolos (separados por vírgula).\nUse 'e' para ε.\nExemplo: a,b,e",
+                      defaultValue: editingTransition.symbols.map(s => s === EPSILON ? 'e' : s).join(','),
+                      onSubmit: (input) => {
+                        if (input && input.trim()) {
+                          const newSymbols = input.split(',').map(s => s.trim()).filter(s => s).map(s => s === 'e' ? EPSILON : s);
+                          editTransition(
+                            editingTransition.from,
+                            editingTransition.to,
+                            editingTransition.symbols,
+                            newSymbols
+                          );
+                          setEditingTransition(null);
+                        }
+                        setShowInputModal(false);
+                      }
+                    });
+                    setShowInputModal(true);
                   }}
                   style={{ padding: '5px', fontSize: 11, cursor: 'pointer' }}
                 >
@@ -639,6 +768,89 @@ export default function CanvasEditor() {
           )}
         </div>
       </div>
+
+      {/* Modal customizado para substituir window.prompt() */}
+      {showInputModal && inputModalConfig && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: 24,
+            borderRadius: 8,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            minWidth: 400,
+            maxWidth: 600
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 18 }}>{inputModalConfig.title}</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: 14, color: '#666', whiteSpace: 'pre-line' }}>
+              {inputModalConfig.message}
+            </p>
+            <input
+              type="text"
+              defaultValue={inputModalConfig.defaultValue}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  inputModalConfig.onSubmit(e.currentTarget.value);
+                } else if (e.key === 'Escape') {
+                  setShowInputModal(false);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: 12,
+                fontSize: 16,
+                border: '2px solid #ddd',
+                borderRadius: 4,
+                fontFamily: 'monospace'
+              }}
+            />
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowInputModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#f0f0f0',
+                  border: '1px solid #ddd',
+                  borderRadius: 4,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={(e) => {
+                  const input = (e.currentTarget.parentElement?.previousElementSibling as HTMLInputElement)?.value;
+                  if (input !== undefined) {
+                    inputModalConfig.onSubmit(input);
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#2196f3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -39,17 +39,17 @@ interface MooreStore {
 
 const initialMachine: MooreMachine = {
   type: 'MOORE',
-  states: ['q0'],
-  alphabet: ['a', 'b'],
-  outputAlphabet: ['x', 'y'],
-  start: 'q0',
+  states: [],
+  alphabet: [],
+  outputAlphabet: [],
+  start: '',
   transitions: [],
-  outputs: { q0: '' }
+  outputs: {}
 }
 
 export const useMooreStore = create<MooreStore>((set, get) => ({
   machine: initialMachine,
-  positions: { q0: { x: 400, y: 300 } },
+  positions: {},
   selected: null,
   tempFrom: null,
   mode: 'select',

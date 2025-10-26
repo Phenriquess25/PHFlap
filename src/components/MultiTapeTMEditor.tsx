@@ -2,10 +2,12 @@ import { useMultiTMStore } from '@state/multiTMStore'
 import { useMemo, useRef, useState, useCallback } from 'react'
 import { BLANK, MultiTMTransition, Direction } from '@model/turing'
 import MultiInputPanel from './MultiInputPanel'
+import { usePrompt } from './PromptModal'
 
 type TransitionKey = string
 
 export default function MultiTapeTMEditor() {
+  const { prompt, PromptComponent } = usePrompt()
   const { 
     machine, 
     positions, 
@@ -62,24 +64,62 @@ export default function MultiTapeTMEditor() {
     }
   }, [mode, addState, setMode, setSelected, zoom, pan])
 
-  const onStateMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     
-    if (mode === 'addTransition' && tempFrom) {
-      // Prompt para múltiplas fitas
-      const reads = window.prompt(
+    // Atalho: Ctrl+clique para criar transição
+    if (e.ctrlKey && selected && selected !== id) {
+      const reads = await prompt(
         `Símbolos a ler (${machine.tapeCount} fitas, separados por vírgula):\nUse '_' para branco\nExemplo: 0,1 ou _,_`,
         Array(machine.tapeCount).fill('_').join(',')
       )
       if (reads === null) return
       
-      const writes = window.prompt(
+      const writes = await prompt(
         `Símbolos a escrever (${machine.tapeCount} fitas, separados por vírgula):\nUse '_' para branco`,
         Array(machine.tapeCount).fill('_').join(',')
       )
       if (writes === null) return
       
-      const movesStr = window.prompt(
+      const movesStr = await prompt(
+        `Direções (${machine.tapeCount} fitas, separadas por vírgula):\nL=esquerda, R=direita, S=parado\nExemplo: R,L`,
+        Array(machine.tapeCount).fill('R').join(',')
+      )
+      if (movesStr === null) return
+
+      const readArr = reads.split(',').map(s => s.trim() === '_' ? BLANK : s.trim())
+      const writeArr = writes.split(',').map(s => s.trim() === '_' ? BLANK : s.trim())
+      const moveArr = movesStr.split(',').map(s => {
+        const upper = s.trim().toUpperCase()
+        return (upper === 'L' ? 'L' : upper === 'S' ? 'S' : 'R') as Direction
+      })
+
+      const newT: MultiTMTransition = {
+        from: selected,
+        to: id,
+        reads: readArr,
+        writes: writeArr,
+        moves: moveArr
+      }
+      addTransition(newT)
+      return
+    }
+    
+    if (mode === 'addTransition' && tempFrom) {
+      // Prompt para múltiplas fitas
+      const reads = await prompt(
+        `Símbolos a ler (${machine.tapeCount} fitas, separados por vírgula):\nUse '_' para branco\nExemplo: 0,1 ou _,_`,
+        Array(machine.tapeCount).fill('_').join(',')
+      )
+      if (reads === null) return
+      
+      const writes = await prompt(
+        `Símbolos a escrever (${machine.tapeCount} fitas, separados por vírgula):\nUse '_' para branco`,
+        Array(machine.tapeCount).fill('_').join(',')
+      )
+      if (writes === null) return
+      
+      const movesStr = await prompt(
         `Direções (${machine.tapeCount} fitas, separadas por vírgula):\nL=esquerda, R=direita, S=parado\nExemplo: R,L`,
         Array(machine.tapeCount).fill('R').join(',')
       )
@@ -110,7 +150,7 @@ export default function MultiTapeTMEditor() {
     if (pos) {
       setDrag({ id, dx: e.clientX - pos.x * zoom - pan.x, dy: e.clientY - pos.y * zoom - pan.y })
     }
-  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, setTempFrom, zoom, pan, machine.tapeCount])
+  }, [mode, tempFrom, positions, setSelected, addTransition, setMode, setTempFrom, zoom, pan, machine.tapeCount, selected])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -644,6 +684,7 @@ export default function MultiTapeTMEditor() {
           )}
         </div>
       </div>
+      {PromptComponent}
     </div>
   )
 }

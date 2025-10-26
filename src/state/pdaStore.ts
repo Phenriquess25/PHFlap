@@ -35,17 +35,17 @@ interface PDAStore {
 
 const initialMachine: PDA = {
   type: 'PDA',
-  states: ['q0'],
-  alphabet: ['a', 'b'],
-  stackAlphabet: ['Z', 'A', 'B'],
-  start: 'q0',
+  states: [],
+  alphabet: [],
+  stackAlphabet: [],
+  start: '',
   accept: [],
   transitions: []
 }
 
 export const usePDAStore = create<PDAStore>((set, get) => ({
   machine: initialMachine,
-  positions: { q0: { x: 400, y: 300 } },
+  positions: {},
   selected: null,
   tempFrom: null,
   simulation: {
