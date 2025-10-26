@@ -1,0 +1,4 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+button { cursor: pointer; }
+pre { background: #fff; padding: 8px; border: 1px solid #eee; border-radius: 6px; }
