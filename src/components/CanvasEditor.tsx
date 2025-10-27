@@ -280,6 +280,59 @@ export default function CanvasEditor() {
     }
   }, [isResizingResults, handleResultsResizeMove, handleResultsResizeEnd])
 
+  // Função para salvar autômato
+  const handleSave = useCallback(() => {
+    if (!fa) return
+    
+    const data = {
+      automaton: fa,
+      positions: positions,
+      version: '1.0.0',
+      type: 'FA',
+      timestamp: new Date().toISOString()
+    }
+    
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `automato-${Date.now()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [fa, positions])
+
+  // Função para carregar autômato
+  const handleLoad = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target?.result as string)
+          if (data.automaton && data.positions) {
+            setFA(data.automaton)
+            Object.entries(data.positions).forEach(([id, pos]: [string, any]) => {
+              setPosition(id, pos)
+            })
+            setTrace(null)
+            setSelected(null)
+            setMode('select')
+          }
+        } catch (error) {
+          alert('Erro ao carregar arquivo: formato inválido')
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }, [setFA, setPosition, setTrace, setSelected, setMode])
+
   if (!fa) return <div style={{ padding: 12 }}>Nenhum autômato</div>
 
   return (
@@ -407,6 +460,21 @@ export default function CanvasEditor() {
                   {isAccept && <circle r={20} fill="none" stroke="#333" strokeWidth="2" />}
                   
                   <text textAnchor="middle" dy="5" fontSize="14" fontWeight="bold">{id}</text>
+                  
+                  {mode === 'select' && (
+                    <g
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (window.confirm(`Remover estado ${id}?`)) {
+                          removeState(id)
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <circle cx="18" cy="-18" r="8" fill="#E53E3E" />
+                      <text x="18" y="-14" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">×</text>
+                    </g>
+                  )}
                 </g>
               )
             })}
@@ -434,8 +502,9 @@ export default function CanvasEditor() {
           <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e0e0e0', fontSize: 11, color: '#666' }}>
             <div>🖱️ <strong>Duplo-clique</strong> em estado: toggle estado final</div>
             <div>🖱️ <strong>Clique direito</strong> em estado: marcar como inicial</div>
-            <div>🖱️ <strong>Clique</strong> em transição: editar rótulo (símbolos)</div>
-            <div>⚙️ <strong>Botão vermelho (×)</strong>: remover estado/transição</div>
+            <div>🖱️ <strong>Duplo-clique</strong> em transição: editar símbolos</div>
+            <div>🖱️ <strong>Ctrl+Click</strong> entre estados: criar transição</div>
+            <div>⚙️ <strong>Botão vermelho (×)</strong>: remover estado</div>
             <div>🎯 <strong>Roda do mouse</strong>: zoom in/out</div>
             <div>🖱️ <strong>Botão do meio</strong>: arrastar tela (pan)</div>
           </div>
@@ -580,7 +649,41 @@ export default function CanvasEditor() {
             </button>
           </div>
 
-          <h4 style={{ margin: '0 0 6px 0', fontSize: 12 }}>📋 Autômato: {fa.type === 'NFA' ? '🔀 AFN' : '⚡ AFD'}</h4>
+          <h4 style={{ margin: '0 0 6px 0', fontSize: 12 }}>� Arquivo</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+            <button
+              onClick={handleSave}
+              style={{
+                padding: '6px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#4caf50',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontWeight: 'bold'
+              }}
+            >
+              💾 Salvar Autômato
+            </button>
+            <button
+              onClick={handleLoad}
+              style={{
+                padding: '6px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#2196f3',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontWeight: 'bold'
+              }}
+            >
+              📂 Carregar Autômato
+            </button>
+          </div>
+
+          <h4 style={{ margin: '0 0 6px 0', fontSize: 12 }}>�📋 Autômato: {fa.type === 'NFA' ? '🔀 AFN' : '⚡ AFD'}</h4>
           <div style={{ fontSize: 10, background: fa.type === 'NFA' ? '#e3f2fd' : '#fff3cd', padding: 6, borderRadius: 4, border: `2px solid ${fa.type === 'NFA' ? '#2196f3' : '#ffc107'}`, marginBottom: 8 }}>
             <div><strong>Alfabeto:</strong> {fa.alphabet.join(', ')}</div>
             <div><strong>Início:</strong> {fa.start || '—'}</div>

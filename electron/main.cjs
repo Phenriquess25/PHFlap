@@ -6,7 +6,9 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    icon: path.join(__dirname, '../public/icon.png'),
+    icon: isDev 
+      ? path.join(__dirname, '../public/icon.png')
+      : path.join(__dirname, '../dist/icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: false,  // Desabilitado para permitir window.prompt()

@@ -20,6 +20,7 @@
         "arch": ["x64"]
       }
     ],
+    "icon": "build/phflapicon.ico",
     "artifactName": "PHFlap-${version}-Portable.${ext}",
     "signAndEditExecutable": false
   },

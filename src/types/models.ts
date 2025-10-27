@@ -25,49 +25,49 @@ export const MODEL_CATALOG: ModelInfo[] = [
   {
     type: 'FA',
     name: 'Autômato Finito',
-    description: 'Autômato Finito Determinístico (AFD) ou Não-Determinístico (AFN)',
+    description: 'Autômato Finito Determinístico (AFD) ou Não-Determinístico (AFN). Dica: Ctrl+Click para criar transições',
     icon: '🔄',
     category: 'automaton'
   },
   {
     type: 'MEALY',
     name: 'Máquina de Mealy',
-    description: 'Transdutor com saídas nas transições',
+    description: 'Transdutor com saídas nas transições. Dica: Ctrl+Click para criar transições',
     icon: '⚙️',
     category: 'transducer'
   },
   {
     type: 'MOORE',
     name: 'Máquina de Moore',
-    description: 'Transdutor com saídas nos estados',
+    description: 'Transdutor com saídas nos estados. Dica: Ctrl+Click para criar transições',
     icon: '🔧',
     category: 'transducer'
   },
   {
     type: 'PDA',
     name: 'Autômato de Pilha',
-    description: 'Autômato com memória em pilha (stack)',
+    description: 'Autômato com memória em pilha (stack). Dica: Ctrl+Click para criar transições',
     icon: '📚',
     category: 'automaton'
   },
   {
     type: 'TM',
     name: 'Máquina de Turing',
-    description: 'Máquina de Turing com fita infinita',
+    description: 'Máquina de Turing com fita infinita. Dica: Ctrl+Click para criar transições',
     icon: '🎞️',
     category: 'automaton'
   },
   {
     type: 'MULTI_TM',
     name: 'Máquina de Turing Multi-Fita',
-    description: 'Máquina de Turing com múltiplas fitas',
+    description: 'Máquina de Turing com múltiplas fitas. Dica: Ctrl+Click para criar transições',
     icon: '🎬',
     category: 'automaton'
   },
   {
     type: 'TM_BLOCKS',
     name: 'Máquina de Turing com Blocos',
-    description: 'Máquina de Turing usando blocos de construção',
+    description: 'Máquina de Turing usando blocos de construção. Dica: Ctrl+Click para criar transições',
     icon: '🧱',
     category: 'automaton'
   },

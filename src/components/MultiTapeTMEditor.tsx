@@ -189,6 +189,45 @@ export default function MultiTapeTMEditor() {
     setEditingTransition(idx)
   }, [])
 
+  const onTransitionDoubleClick = useCallback(async (t: typeof transitions[0], e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newReads = await prompt('Editar símbolos lidos (separados por vírgula):', t.reads.join(','))
+    if (newReads === null) return
+    
+    const newWrites = await prompt('Editar símbolos escritos (separados por vírgula):', t.writes.join(','))
+    if (newWrites === null) return
+    
+    const newMoves = await prompt('Editar movimentos (L/R/S separados por vírgula):', t.moves.join(','))
+    if (newMoves === null) return
+    
+    const readsArr = newReads.split(',').map(s => s.trim()).filter(s => s)
+    const writesArr = newWrites.split(',').map(s => s.trim()).filter(s => s)
+    const movesArr = newMoves.split(',').map(s => s.trim().toUpperCase()).filter(s => s)
+    
+    if (readsArr.length > 0 && writesArr.length > 0 && movesArr.length > 0 &&
+        readsArr.length === writesArr.length && writesArr.length === movesArr.length &&
+        movesArr.every(m => ['L', 'R', 'S'].includes(m))) {
+      const updatedMachine = { ...machine }
+      updatedMachine.transitions = [...machine.transitions]
+      const idx = transitions.findIndex(tr => 
+        tr.from === t.from && tr.to === t.to && 
+        JSON.stringify(tr.reads) === JSON.stringify(t.reads) &&
+        JSON.stringify(tr.writes) === JSON.stringify(t.writes) &&
+        JSON.stringify(tr.moves) === JSON.stringify(t.moves)
+      )
+      updatedMachine.transitions.splice(idx, 1)
+      updatedMachine.transitions.push({ 
+        from: t.from, 
+        to: t.to, 
+        reads: readsArr, 
+        writes: writesArr, 
+        moves: movesArr as Direction[]
+      })
+      setMachine(updatedMachine)
+      setEditingTransition(null)
+    }
+  }, [machine, transitions, setMachine, prompt])
+
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1
@@ -277,6 +316,7 @@ export default function MultiTapeTMEditor() {
                   isHovered={isHovered}
                   isEditing={isEditing}
                   onClick={(e) => onTransitionClick(idx, e)}
+                  onDoubleClick={(e) => onTransitionDoubleClick(transitions[idx], e)}
                   onMouseEnter={() => setHoverTransition(key)}
                   onMouseLeave={() => setHoverTransition(null)}
                 />
@@ -341,6 +381,21 @@ export default function MultiTapeTMEditor() {
                   {isAccept && <circle r={20} fill="none" stroke="#333" strokeWidth="2" />}
                   
                   <text textAnchor="middle" dy="5" fontSize="14" fontWeight="bold">{id}</text>
+                  
+                  {!simulation.isSimulating && mode === 'select' && (
+                    <g
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (window.confirm(`Remover estado ${id}?`)) {
+                          removeState(id)
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <circle cx="18" cy="-18" r="8" fill="#E53E3E" />
+                      <text x="18" y="-14" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">×</text>
+                    </g>
+                  )}
                 </g>
               )
             })}
@@ -368,8 +423,9 @@ export default function MultiTapeTMEditor() {
           <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e0e0e0', fontSize: 11, color: '#666' }}>
             <div>🖱️ <strong>Duplo-clique</strong> em estado: toggle estado final</div>
             <div>🖱️ <strong>Clique direito</strong> em estado: marcar como inicial</div>
-            <div>🖱️ <strong>Clique</strong> em transição: editar read/write/direction</div>
-            <div>⚙️ <strong>Botão vermelho (×)</strong>: remover estado/transição</div>
+            <div>🖱️ <strong>Duplo-clique</strong> em transição: editar reads/writes/moves</div>
+            <div>🖱️ <strong>Ctrl+Click</strong> entre estados: criar transição</div>
+            <div>⚙️ <strong>Botão vermelho (×)</strong>: remover estado</div>
             <div>🎯 <strong>Roda do mouse</strong>: zoom in/out</div>
             <div>🖱️ <strong>Botão do meio</strong>: arrastar tela (pan)</div>
           </div>
@@ -697,6 +753,7 @@ function TransitionArrow({
   isHovered,
   isEditing,
   onClick,
+  onDoubleClick,
   onMouseEnter,
   onMouseLeave,
 }: {
@@ -707,6 +764,7 @@ function TransitionArrow({
   isHovered: boolean
   isEditing: boolean
   onClick: (e: React.MouseEvent) => void
+  onDoubleClick?: (e: React.MouseEvent) => void
   onMouseEnter: () => void
   onMouseLeave: () => void
 }) {
@@ -717,7 +775,7 @@ function TransitionArrow({
     const cy = from.y - 45
     const r = 22
     return (
-      <g onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
+      <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
         <circle cx={cx} cy={cy} r={r + 5} fill="transparent" stroke="transparent" strokeWidth="10" />
         <circle
           cx={cx}
@@ -771,7 +829,7 @@ function TransitionArrow({
   const pathD = `M ${start.x} ${start.y} Q ${ctrlX} ${ctrlY} ${end.x} ${end.y}`
 
   return (
-    <g onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
+    <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
       <path d={pathD} fill="none" stroke="transparent" strokeWidth="15" />
       <path
         d={pathD}

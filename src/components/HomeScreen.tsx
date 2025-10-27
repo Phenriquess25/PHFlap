@@ -34,6 +34,7 @@ export default function HomeScreen({ onSelectModel }: HomeScreenProps) {
             height: '800px',
             filter: 'invert(1)'
           }} 
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
         />
       </div>
 
@@ -51,6 +52,7 @@ export default function HomeScreen({ onSelectModel }: HomeScreenProps) {
               marginBottom: '1rem',
               filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))'
             }} 
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
           <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0', fontWeight: 'bold', color: '#fff' }}>
             PHFlap

@@ -256,6 +256,38 @@ export default function TMEditor() {
     setEditingTransition(idx)
   }, [])
 
+  const onTransitionDoubleClick = useCallback(async (t: typeof transitions[0], e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newRead = await prompt('Editar símbolo lido:', t.read)
+    if (newRead === null) return
+    
+    const newWrite = await prompt('Editar símbolo escrito:', t.write)
+    if (newWrite === null) return
+    
+    const newMove = await prompt('Editar movimento (L/R/S):', t.move)
+    if (newMove === null) return
+    
+    const normalizedMove = newMove.trim().toUpperCase()
+    if (newRead.trim() && newWrite.trim() && ['L', 'R', 'S'].includes(normalizedMove)) {
+      const updatedTM = { ...tm }
+      updatedTM.transitions = [...tm.transitions]
+      const idx = transitions.findIndex(tr => 
+        tr.from === t.from && tr.to === t.to && 
+        tr.read === t.read && tr.write === t.write && tr.move === t.move
+      )
+      updatedTM.transitions.splice(idx, 1)
+      updatedTM.transitions.push({ 
+        from: t.from, 
+        to: t.to, 
+        read: newRead.trim(), 
+        write: newWrite.trim(), 
+        move: normalizedMove as Direction
+      })
+      setTM(updatedTM)
+      setEditingTransition(null)
+    }
+  }, [tm, transitions, setTM, prompt])
+
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1
@@ -333,6 +365,7 @@ export default function TMEditor() {
                   isHovered={isHovered}
                   isEditing={isEditing}
                   onClick={(e) => onTransitionClick(t.idx, e)}
+                  onDoubleClick={(e) => onTransitionDoubleClick(t, e)}
                   onMouseEnter={() => setHoverTransition(t.key)}
                   onMouseLeave={() => setHoverTransition(null)}
                 />
@@ -438,8 +471,9 @@ export default function TMEditor() {
           <div><strong>Zoom:</strong> {(zoom * 100).toFixed(0)}%</div>
           <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e0e0e0', fontSize: 11, color: '#666' }}>
             <div>🖱️ <strong>Duplo-clique</strong> em estado: marcar como inicial</div>
-            <div>🖱️ <strong>Clique</strong> em transição: editar read/write/direction</div>
-            <div>⚙️ <strong>Botão vermelho (×)</strong>: remover estado/transição</div>
+            <div>🖱️ <strong>Duplo-clique</strong> em transição: editar read/write/move</div>
+            <div>🖱️ <strong>Ctrl+Click</strong> entre estados: criar transição</div>
+            <div>⚙️ <strong>Botão vermelho (×)</strong>: remover estado</div>
             <div>🎯 <strong>Roda do mouse</strong>: zoom in/out</div>
             <div>🖱️ <strong>Botão do meio</strong>: arrastar tela (pan)</div>
             <div>📼 <strong>Fita</strong> visível durante simulação no painel lateral</div>
@@ -743,6 +777,7 @@ function TransitionArrow({
   isHovered,
   isEditing,
   onClick,
+  onDoubleClick,
   onMouseEnter,
   onMouseLeave,
 }: {
@@ -753,6 +788,7 @@ function TransitionArrow({
   isHovered: boolean
   isEditing: boolean
   onClick: (e: React.MouseEvent) => void
+  onDoubleClick?: (e: React.MouseEvent) => void
   onMouseEnter: () => void
   onMouseLeave: () => void
 }) {
@@ -763,7 +799,7 @@ function TransitionArrow({
     const cy = from.y - 45
     const r = 22
     return (
-      <g onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
+      <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
         <circle cx={cx} cy={cy} r={r + 5} fill="transparent" stroke="transparent" strokeWidth="10" />
         <circle
           cx={cx}
@@ -817,7 +853,7 @@ function TransitionArrow({
   const pathD = `M ${start.x} ${start.y} Q ${ctrlX} ${ctrlY} ${end.x} ${end.y}`
 
   return (
-    <g onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
+    <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
       <path d={pathD} fill="none" stroke="transparent" strokeWidth="15" />
       <path
         d={pathD}

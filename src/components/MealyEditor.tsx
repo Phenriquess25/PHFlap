@@ -134,6 +134,21 @@ export default function MealyEditor() {
     setEditingTransition(idx)
   }, [])
 
+  const onTransitionDoubleClick = useCallback(async (t: typeof transitions[0], e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newInput = await prompt('Editar símbolo de entrada:', t.input)
+    if (newInput === null) return
+    
+    const newOutput = await prompt('Editar símbolo de saída:', t.output)
+    if (newOutput === null) return
+    
+    if (newInput.trim() && newOutput.trim()) {
+      removeTransition(transitions.findIndex(tr => tr.from === t.from && tr.to === t.to && tr.input === t.input && tr.output === t.output))
+      addTransition({ from: t.from, to: t.to, input: newInput.trim(), output: newOutput.trim() })
+      setEditingTransition(null)
+    }
+  }, [transitions, removeTransition, addTransition, prompt])
+
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1
@@ -214,6 +229,7 @@ export default function MealyEditor() {
                   isHovered={isHovered}
                   isEditing={isEditing}
                   onClick={(e) => onTransitionClick(t.idx, e)}
+                  onDoubleClick={(e) => onTransitionDoubleClick(t, e)}
                   onMouseEnter={() => setHoverTransition(t.key)}
                   onMouseLeave={() => setHoverTransition(null)}
                 />
@@ -607,6 +623,7 @@ function TransitionArrow({
   isHovered,
   isEditing,
   onClick,
+  onDoubleClick,
   onMouseEnter,
   onMouseLeave,
 }: {
@@ -617,6 +634,7 @@ function TransitionArrow({
   isHovered: boolean
   isEditing: boolean
   onClick: (e: React.MouseEvent) => void
+  onDoubleClick?: (e: React.MouseEvent) => void
   onMouseEnter: () => void
   onMouseLeave: () => void
 }) {
@@ -627,7 +645,7 @@ function TransitionArrow({
     const cy = from.y - 45
     const r = 22
     return (
-      <g onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
+      <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
         <circle cx={cx} cy={cy} r={r + 5} fill="transparent" stroke="transparent" strokeWidth="10" />
         <circle
           cx={cx}
@@ -681,7 +699,7 @@ function TransitionArrow({
   const pathD = `M ${start.x} ${start.y} Q ${ctrlX} ${ctrlY} ${end.x} ${end.y}`
 
   return (
-    <g onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
+    <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
       <path d={pathD} fill="none" stroke="transparent" strokeWidth="15" />
       <path
         d={pathD}
