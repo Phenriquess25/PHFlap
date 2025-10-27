@@ -54,9 +54,6 @@ export default function HomeScreen({ onSelectModel }: HomeScreenProps) {
             }} 
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
-          <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0', fontWeight: 'bold', color: '#fff' }}>
-            PHFlap
-          </h1>
         <p style={{ fontSize: '1rem', opacity: 0.9, margin: '0.25rem 0' }}>
           Editor e Simulador de Modelos Computacionais
         </p>

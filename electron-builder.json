@@ -10,6 +10,10 @@
     "electron/**/*",
     "package.json"
   ],
+  "asarUnpack": [
+    "dist/*.svg",
+    "dist/*.png"
+  ],
   "extraMetadata": {
     "main": "electron/main.cjs"
   },

@@ -13,6 +13,7 @@ export default function TMBlocksEditor() {
     selected,
     tempFrom,
     simulation,
+    setMachine,
     setPositions,
     setSelected,
     setTempFrom,
@@ -191,6 +192,54 @@ export default function TMBlocksEditor() {
     }
   }, [pan])
 
+  // Função para salvar máquina de Turing com blocos
+  const handleSave = useCallback(() => {
+    const data = {
+      machine: machine,
+      positions: positions,
+      version: '1.0.0',
+      type: 'TM_BLOCKS',
+      timestamp: new Date().toISOString()
+    }
+    
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `tm-blocks-${Date.now()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [machine, positions])
+
+  // Função para carregar máquina de Turing com blocos
+  const handleLoad = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target?.result as string)
+          if (data.machine && data.positions) {
+            setMachine(data.machine)
+            setPositions(data.positions)
+            setSelected(null)
+            stopSimulation()
+          }
+        } catch (error) {
+          alert('Erro ao carregar arquivo: formato inválido')
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }, [setMachine, setPositions, setSelected, stopSimulation])
+
   const currentConfig = simulation.isSimulating && simulation.steps[simulation.currentStepIndex]
     ? simulation.steps[simulation.currentStepIndex].config
     : null
@@ -241,12 +290,99 @@ export default function TMBlocksEditor() {
               </g>
             )}
 
-            {transitions.map(({ from, to, read, write, move, idx }) => {
+            {/* Agrupar loops por estado e desenhar uma única seta com múltiplos rótulos */}
+            {machine.states.map(stateId => {
+              const loopTransitions = transitions.filter(t => t.from === stateId && t.to === stateId)
+              
+              const pos = positions[stateId]
+              if (!pos) return null
+              
+              return loopTransitions.length > 0 && (() => {
+                const isAnyEditing = loopTransitions.some(t => editingTransition === t.idx)
+                const isAnyHovered = loopTransitions.some(t => hoverTransition === `${t.from}→${t.to}→${t.idx}`)
+
+                const strokeColor = isAnyEditing
+                  ? '#ff6600'
+                  : isAnyHovered
+                  ? '#0066ff'
+                  : '#666'
+
+                const cx = pos.x
+                const cy = pos.y - 45
+                const r = 22
+
+                return (
+                  <g
+                    key={`loop-${stateId}`}
+                    onClick={(e) => { e.stopPropagation(); onTransitionClick(loopTransitions[0].idx, e); }}
+                    onDoubleClick={(e) => { e.stopPropagation(); onTransitionDoubleClick(loopTransitions[0], e); }}
+                    onMouseEnter={() => setHoverTransition(`${loopTransitions[0].from}→${loopTransitions[0].to}→${loopTransitions[0].idx}`)}
+                    onMouseLeave={() => setHoverTransition(null)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* círculo transparente maior para área de clique */}
+                    <circle cx={cx} cy={cy} r={r + 5} fill="transparent" stroke="transparent" strokeWidth="10" />
+                    
+                    {/* único arco */}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={r}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={isAnyEditing ? 3 : isAnyHovered ? 2.5 : 2}
+                      markerEnd="url(#arrowhead)"
+                    />
+
+                    {/* textos empilhados acima com caixas brancas */}
+                    {loopTransitions.map((t, idx) => {
+                      const label = `${t.read},${t.write},${t.move === 'L' ? '⬅️' : t.move === 'R' ? '➡️' : '⏸️'}`
+                      const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
+                      
+                      return (
+                        <g key={`${t.from}→${t.to}→${t.idx}`}>
+                          {/* caixa branca de fundo */}
+                          <rect
+                            x={cx - label.length * 4.5}
+                            y={cy - r - 25 - labelOffsetY}
+                            width={label.length * 9}
+                            height={20}
+                            fill="rgba(255, 255, 255, 0.9)"
+                            stroke={
+                              editingTransition === t.idx
+                                ? '#ff6600'
+                                : hoverTransition === `${t.from}→${t.to}→${t.idx}`
+                                ? '#0066ff'
+                                : '#ddd'
+                            }
+                            strokeWidth="1"
+                            rx="3"
+                          />
+                          {/* texto */}
+                          <text
+                            x={cx}
+                            y={cy - r - 11 - labelOffsetY}
+                            textAnchor="middle"
+                            fontSize="16"
+                            fill={editingTransition === t.idx ? '#ff6600' : '#222'}
+                            fontWeight="bold"
+                          >
+                            {label}
+                          </text>
+                        </g>
+                      )
+                    })}
+                  </g>
+                )
+              })()
+            })}
+
+            {/* Desenhar transições normais (não-loops) */}
+            {transitions.filter(t => t.from !== t.to).map(({ from, to, read, write, move, idx }) => {
               const fromPos = positions[from]
               const toPos = positions[to]
               if (!fromPos || !toPos) return null
 
-              const isLoop = from === to
               const key = `${from}→${to}→${idx}`
               const isHovered = hoverTransition === key
               const isEditing = editingTransition === idx
@@ -259,7 +395,7 @@ export default function TMBlocksEditor() {
                   from={fromPos}
                   to={toPos}
                   label={label}
-                  isLoop={isLoop}
+                  isLoop={false}
                   isHovered={isHovered}
                   isEditing={isEditing}
                   onClick={(e) => onTransitionClick(idx, e)}
@@ -574,6 +710,40 @@ export default function TMBlocksEditor() {
               }}
             >
               ➕ Adicionar Estado
+            </button>
+          </div>
+
+          <h4 style={{ margin: '0 0 6px 0', fontSize: 12 }}>💾 Arquivo</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+            <button
+              onClick={handleSave}
+              style={{
+                padding: '6px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#4caf50',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontWeight: 'bold'
+              }}
+            >
+              💾 Salvar Máquina
+            </button>
+            <button
+              onClick={handleLoad}
+              style={{
+                padding: '6px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#2196f3',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontWeight: 'bold'
+              }}
+            >
+              📂 Carregar Máquina
             </button>
           </div>
 

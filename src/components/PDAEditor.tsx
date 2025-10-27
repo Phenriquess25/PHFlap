@@ -17,6 +17,8 @@ export default function PDAEditor() {
     setTempFrom,
     addState,
     removeState,
+    setMachine,
+    setPositions,
     setStart,
     toggleAccept,
     addTransition,
@@ -194,6 +196,54 @@ export default function PDAEditor() {
     }
   }, [pan])
 
+  // Função para salvar autômato de pilha
+  const handleSave = useCallback(() => {
+    const data = {
+      machine: machine,
+      positions: positions,
+      version: '1.0.0',
+      type: 'PDA',
+      timestamp: new Date().toISOString()
+    }
+    
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `pda-${Date.now()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [machine, positions])
+
+  // Função para carregar autômato de pilha
+  const handleLoad = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target?.result as string)
+          if (data.machine && data.positions) {
+            setMachine(data.machine)
+            setPositions(data.positions)
+            setSelected(null)
+            stopSimulation()
+          }
+        } catch (error) {
+          alert('Erro ao carregar arquivo: formato inválido')
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }, [setMachine, setPositions, setSelected, stopSimulation])
+
   const isActive = (stateId: string) => {
     if (!simulation.isSimulating) return false
     return currentStep?.config.state === stateId
@@ -245,7 +295,95 @@ export default function PDAEditor() {
               </g>
             )}
 
-            {transitions.map((t) => {
+            {/* Agrupar loops por estado e desenhar uma única seta com múltiplos rótulos */}
+            {machine.states.map(stateId => {
+              const loopTransitions = transitions.filter(t => t.from === stateId && t.to === stateId)
+              
+              const pos = positions[stateId]
+              if (!pos) return null
+              
+              return loopTransitions.length > 0 && (() => {
+                const isAnyEditing = loopTransitions.some(t => editingTransition === t.idx)
+                const isAnyHovered = loopTransitions.some(t => hoverTransition === t.key)
+
+                const strokeColor = isAnyEditing
+                  ? '#ff6600'
+                  : isAnyHovered
+                  ? '#0066ff'
+                  : '#666'
+
+                const cx = pos.x
+                const cy = pos.y - 45
+                const r = 22
+
+                return (
+                  <g
+                    key={`loop-${stateId}`}
+                    onClick={(e) => { e.stopPropagation(); onTransitionClick(loopTransitions[0].idx, e); }}
+                    onDoubleClick={(e) => { e.stopPropagation(); onTransitionDoubleClick(loopTransitions[0], e); }}
+                    onMouseEnter={() => setHoverTransition(loopTransitions[0].key)}
+                    onMouseLeave={() => setHoverTransition(null)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* círculo transparente maior para área de clique */}
+                    <circle cx={cx} cy={cy} r={r + 5} fill="transparent" stroke="transparent" strokeWidth="10" />
+                    
+                    {/* único arco */}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={r}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={isAnyEditing ? 3 : isAnyHovered ? 2.5 : 2}
+                      markerEnd="url(#arrowhead)"
+                    />
+
+                    {/* textos empilhados acima com caixas brancas */}
+                    {loopTransitions.map((t, idx) => {
+                      const label = `${t.input}, ${t.stackPop} → ${t.stackPush}`
+                      const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
+                      
+                      return (
+                        <g key={t.key}>
+                          {/* caixa branca de fundo */}
+                          <rect
+                            x={cx - label.length * 4.5}
+                            y={cy - r - 25 - labelOffsetY}
+                            width={label.length * 9}
+                            height={20}
+                            fill="rgba(255, 255, 255, 0.9)"
+                            stroke={
+                              editingTransition === t.idx
+                                ? '#ff6600'
+                                : hoverTransition === t.key
+                                ? '#0066ff'
+                                : '#ddd'
+                            }
+                            strokeWidth="1"
+                            rx="3"
+                          />
+                          {/* texto */}
+                          <text
+                            x={cx}
+                            y={cy - r - 11 - labelOffsetY}
+                            textAnchor="middle"
+                            fontSize="16"
+                            fill={editingTransition === t.idx ? '#ff6600' : '#222'}
+                            fontWeight="bold"
+                          >
+                            {label}
+                          </text>
+                        </g>
+                      )
+                    })}
+                  </g>
+                )
+              })()
+            })}
+
+            {/* Desenhar transições normais (não-loops) */}
+            {transitions.filter(t => t.from !== t.to).map((t) => {
               const isHovered = hoverTransition === t.key
               const isEditing = editingTransition === t.idx
               
@@ -255,7 +393,8 @@ export default function PDAEditor() {
                   from={positions[t.from]}
                   to={positions[t.to]}
                   label={`${t.input}, ${t.stackPop} → ${t.stackPush}`}
-                  isLoop={t.from === t.to}
+                  isLoop={false}
+                  loopIndex={0}
                   isHovered={isHovered}
                   isEditing={isEditing}
                   onClick={(e) => onTransitionClick(t.idx, e)}
@@ -582,6 +721,40 @@ export default function PDAEditor() {
 
           <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid #ddd' }} />
 
+          <h4 style={{ margin: '0 0 6px 0', fontSize: 12 }}>💾 Arquivo</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+            <button
+              onClick={handleSave}
+              style={{
+                padding: '6px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#4caf50',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontWeight: 'bold'
+              }}
+            >
+              💾 Salvar Autômato
+            </button>
+            <button
+              onClick={handleLoad}
+              style={{
+                padding: '6px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#2196f3',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontWeight: 'bold'
+              }}
+            >
+              📂 Carregar Autômato
+            </button>
+          </div>
+
           <h4 style={{ margin: '0 0 8px 0' }}>📚 Autômato com Pilha</h4>
           <div style={{ 
             fontSize: 12, 
@@ -673,6 +846,7 @@ function TransitionArrow({
   to,
   label,
   isLoop,
+  loopIndex = 0,
   isHovered,
   isEditing,
   onClick,
@@ -684,6 +858,7 @@ function TransitionArrow({
   to: { x: number; y: number }
   label: string
   isLoop: boolean
+  loopIndex?: number
   isHovered: boolean
   isEditing: boolean
   onClick: (e: React.MouseEvent) => void
@@ -694,9 +869,14 @@ function TransitionArrow({
   if (!from || !to) return null
 
   if (isLoop) {
+    // Todos os loops na mesma posição (em cima do estado)
     const cx = from.x
     const cy = from.y - 45
     const r = 22
+    
+    // Empilhar rótulos verticalmente baseado no loopIndex
+    const labelOffsetY = loopIndex * 16 // Cada rótulo adicional fica 16px acima
+    
     return (
       <g onClick={onClick} onDoubleClick={onDoubleClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
         <circle cx={cx} cy={cy} r={r + 5} fill="transparent" stroke="transparent" strokeWidth="10" />
@@ -711,21 +891,21 @@ function TransitionArrow({
         />
         <rect
           x={cx - label.length * 4.5}
-          y={cy - r - 25}
+          y={cy - r - 25 - labelOffsetY}
           width={label.length * 9}
-          height={20}
-          fill="rgba(255, 255, 255, 0.9)"
-          stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
-          strokeWidth="1"
-          rx="3"
+          height={18}
+          fill="white"
+          stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : 'none'}
+          strokeWidth={1.5}
+          rx={3}
         />
         <text
           x={cx}
-          y={cy - r - 11}
+          y={cy - r - 14 - labelOffsetY}
           textAnchor="middle"
-          fontSize="16"
-          fill={isEditing ? '#ff6600' : '#222'}
-          fontWeight="bold"
+          fontSize="12"
+          fill={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#333'}
+          fontWeight={isEditing || isHovered ? 'bold' : 'normal'}
         >
           {label}
         </text>
