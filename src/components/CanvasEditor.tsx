@@ -540,6 +540,20 @@ export default function CanvasEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Autômato Finito
+        </div>
+
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>▶️ Simulação</h4>
           <MultiInputPanel
@@ -984,6 +998,8 @@ function TransitionArrow({
   onMouseEnter: () => void
   onMouseLeave: () => void
 }) {
+  const displayLabel = label || 'λ'
+  
   if (isLoop) {
     const cx = from.x
     const cy = from.y - 45
@@ -1001,9 +1017,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={20}
           fill="rgba(255, 255, 255, 0.9)"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -1018,7 +1034,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : '#222'}
           fontWeight="bold"
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -1053,9 +1069,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -1070,7 +1086,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

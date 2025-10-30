@@ -39,6 +39,41 @@ export default function TMBlocksEditor() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [batchResults, setBatchResults] = useState<Array<{input: string, accepted: boolean}> | null>(null)
+
+  // Função para simular completamente uma entrada
+  const simulateComplete = (inputString: string): boolean => {
+    let tape = inputString.split('')
+    const BLANK = '_'
+    tape.push(BLANK, BLANK, BLANK)
+    let head = 0
+    let state = machine.start
+    const maxSteps = 10000
+
+    for (let step = 0; step < maxSteps; step++) {
+      if (machine.accept.includes(state)) return true
+
+      const symbol = tape[head] || BLANK
+      const transition = machine.transitions.find(t => t.from === state && t.read === symbol)
+
+      if (!transition) {
+        return machine.accept.includes(state)
+      }
+
+      tape[head] = transition.write
+
+      if (transition.move === 'L') {
+        head = Math.max(0, head - 1)
+      } else if (transition.move === 'R') {
+        head++
+        if (head >= tape.length) tape.push(BLANK)
+      }
+
+      state = transition.to
+    }
+
+    return machine.accept.includes(state)
+  }
 
   const transitions = useMemo(() => {
     return machine.transitions.map((t, idx) => ({ ...t, key: `${t.from}→${t.to}→${idx}`, idx }))
@@ -336,7 +371,7 @@ export default function TMBlocksEditor() {
 
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
-                      const label = `${t.read},${t.write},${t.move === 'L' ? '⬅️' : t.move === 'R' ? '➡️' : '⏸️'}`
+                      const label = `${t.read || 'λ'},${t.write || 'λ'},${t.move === 'L' ? '⬅️' : t.move === 'R' ? '➡️' : '⏸️'}`
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
                       return (
@@ -387,7 +422,7 @@ export default function TMBlocksEditor() {
               const isHovered = hoverTransition === key
               const isEditing = editingTransition === idx
 
-              const label = `${read},${write},${move === 'L' ? '⬅️' : move === 'R' ? '➡️' : '⏸️'}`
+              const label = `${read || 'λ'},${write || 'λ'},${move === 'L' ? '⬅️' : move === 'R' ? '➡️' : '⏸️'}`
 
               return (
                 <TransitionArrow
@@ -545,6 +580,20 @@ export default function TMBlocksEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Máquina de Turing (Blocos)
+        </div>
+
         {simulation.isSimulating && currentConfig && (
           <div style={{ padding: 12, borderBottom: '2px solid #ddd', background: '#fff', maxHeight: '30%', overflow: 'auto' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: 12 }}>📼 Fita</h4>
@@ -595,16 +644,69 @@ export default function TMBlocksEditor() {
 
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0', fontSize: 12 }}>▶️ Simulação</h4>
-          {!simulation.isSimulating ? (
+          {!simulation.isSimulating && !batchResults ? (
             <MultiInputPanel
               onSimulate={(inputs) => {
                 if (inputs.length === 1) {
+                  setBatchResults(null)
                   startSimulation(inputs[0])
+                } else {
+                  // Simulação em lote
+                  const results = inputs.map(input => ({
+                    input,
+                    accepted: simulateComplete(input)
+                  }))
+                  setBatchResults(results)
                 }
               }}
               disabled={simulation.isSimulating}
               placeholder="Entrada (ex: 0011)"
             />
+          ) : batchResults ? (
+            <>
+              <div style={{
+                padding: 8,
+                background: '#f0f9ff',
+                border: '2px solid #0ea5e9',
+                borderRadius: 4,
+                marginBottom: 8,
+                textAlign: 'center',
+                fontWeight: 'bold',
+                fontSize: 12
+              }}>
+                📊 Simulação em Lote ({batchResults.filter(r => r.accepted).length}/{batchResults.length} aceitas)
+              </div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+                {batchResults.map((r, i) => (
+                  <div key={i} style={{
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    background: r.accepted ? '#d4edda' : '#f8d7da',
+                    border: `1px solid ${r.accepted ? '#28a745' : '#dc3545'}`,
+                    borderRadius: 4,
+                    fontSize: 11
+                  }}>
+                    {i + 1}. "{r.input}" → {r.accepted ? '✅ ACEITA' : '❌ REJEITA'}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setBatchResults(null)}
+                style={{
+                  padding: '6px 10px',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: 'bold',
+                  fontSize: 11
+                }}
+              >
+                ◀️ Nova Simulação
+              </button>
+            </>
           ) : (
             <>
               <div style={{
@@ -675,7 +777,7 @@ export default function TMBlocksEditor() {
           )}
         </div>
 
-        <div style={{ padding: 12, overflow: 'auto', flex: 1, background: '#f9f9f9' }}>
+        <div style={{ padding: 12, overflow: 'auto', flex: 1, minHeight: 0, background: '#f9f9f9' }}>
           <h4 style={{ margin: '0 0 8px 0', fontSize: 12 }}>🔧 Ferramentas</h4>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -864,6 +966,8 @@ function TransitionArrow({
 }) {
   if (!from || !to) return null
 
+  const displayLabel = label || 'λ'
+
   if (isLoop) {
     const cx = from.x
     const cy = from.y - 45
@@ -881,9 +985,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={20}
           fill="rgba(255, 255, 255, 0.9)"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -898,7 +1002,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : '#222'}
           fontWeight="bold"
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -933,9 +1037,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -950,7 +1054,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

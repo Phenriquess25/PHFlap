@@ -40,6 +40,57 @@ export default function PDAEditor() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [batchResults, setBatchResults] = useState<Array<{input: string, accepted: boolean}> | null>(null)
+
+  // Função para simular completamente uma entrada (PDA)
+  const simulateComplete = (inputString: string): boolean => {
+    const symbols = inputString.split('')
+    const BLANK = 'ε'
+    const stack: string[] = ['Z'] // Z é o símbolo inicial da pilha
+    let state = machine.start
+    const maxSteps = 10000
+
+    for (let step = 0; step < maxSteps; step++) {
+      // Aceita se chegou em estado de aceitação, consumiu toda entrada e pilha vazia (ou com Z)
+      if (machine.accept.includes(state) && symbols.length === 0) {
+        return true
+      }
+
+      const symbol = symbols.length > 0 ? symbols[0] : BLANK
+      const topOfStack = stack.length > 0 ? stack[stack.length - 1] : BLANK
+
+      const transition = machine.transitions.find(t => 
+        t.from === state && 
+        (t.input === symbol || t.input === BLANK) &&
+        (t.stackPop === topOfStack || t.stackPop === BLANK)
+      )
+
+      if (!transition) {
+        return machine.accept.includes(state) && symbols.length === 0
+      }
+
+      // Consome input se não for ε
+      if (transition.input !== BLANK && symbols.length > 0) {
+        symbols.shift()
+      }
+
+      // Remove do topo da pilha se não for ε
+      if (transition.stackPop !== BLANK && stack.length > 0) {
+        stack.pop()
+      }
+
+      // Empilha se não for ε
+      if (transition.stackPush !== BLANK) {
+        // Empilha da direita para esquerda para manter ordem
+        const toPush = transition.stackPush.split('').reverse()
+        stack.push(...toPush)
+      }
+
+      state = transition.to
+    }
+
+    return machine.accept.includes(state) && symbols.length === 0
+  }
 
   const transitions = useMemo(() => {
     return machine.transitions.map((t, idx) => ({ ...t, key: `${t.from}→${t.to}→${idx}`, idx }))
@@ -341,7 +392,7 @@ export default function PDAEditor() {
 
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
-                      const label = `${t.input}, ${t.stackPop} → ${t.stackPush}`
+                      const label = `${t.input || 'λ'}, ${t.stackPop || 'λ'} → ${t.stackPush || 'λ'}`
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
                       return (
@@ -542,6 +593,20 @@ export default function PDAEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Autômato de Pilha
+        </div>
+
         {/* Visualizador de Pilha */}
         <div style={{ padding: 12, borderBottom: '2px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>📚 Pilha</h4>
@@ -583,18 +648,67 @@ export default function PDAEditor() {
         {/* Simulador */}
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>▶️ Simulação</h4>
-          {!simulation.isSimulating ? (
+          {!simulation.isSimulating && !batchResults ? (
             <MultiInputPanel
               onSimulate={(inputs) => {
                 if (inputs.length === 1) {
+                  setBatchResults(null)
                   startSimulation(inputs[0])
                 } else {
-                  startSimulation(inputs[0])
+                  // Simulação em lote
+                  const results = inputs.map(input => ({
+                    input,
+                    accepted: simulateComplete(input)
+                  }))
+                  setBatchResults(results)
                 }
               }}
               disabled={simulation.isSimulating}
               placeholder="Entrada (ex: aabb)"
             />
+          ) : batchResults ? (
+            <>
+              <div style={{
+                padding: 8,
+                background: '#f0f9ff',
+                border: '2px solid #0ea5e9',
+                borderRadius: 4,
+                marginBottom: 8,
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                📊 Simulação em Lote ({batchResults.filter(r => r.accepted).length}/{batchResults.length} aceitas)
+              </div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+                {batchResults.map((r, i) => (
+                  <div key={i} style={{
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    background: r.accepted ? '#d4edda' : '#f8d7da',
+                    border: `1px solid ${r.accepted ? '#28a745' : '#dc3545'}`,
+                    borderRadius: 4,
+                    fontSize: 12
+                  }}>
+                    {i + 1}. "{r.input}" → {r.accepted ? '✅ ACEITA' : '❌ REJEITA'}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setBatchResults(null)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: 'bold'
+                }}
+              >
+                ◀️ Nova Simulação
+              </button>
+            </>
           ) : (
             <>
               <div style={{
@@ -871,6 +985,8 @@ function TransitionArrow({
 }) {
   if (!from || !to) return null
 
+  const displayLabel = label || 'λ'
+
   if (isLoop) {
     // Todos os loops na mesma posição (em cima do estado)
     const cx = from.x
@@ -893,9 +1009,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25 - labelOffsetY}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={18}
           fill="white"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : 'none'}
@@ -910,7 +1026,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#333'}
           fontWeight={isEditing || isHovered ? 'bold' : 'normal'}
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -945,9 +1061,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -962,7 +1078,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

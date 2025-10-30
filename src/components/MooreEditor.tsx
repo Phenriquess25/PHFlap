@@ -41,6 +41,28 @@ export default function MooreEditor() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [batchResults, setBatchResults] = useState<Array<{input: string, success: boolean, output: string}> | null>(null)
+
+  // Função para simular completamente uma entrada (Moore Machine)
+  const simulateComplete = (inputString: string): { success: boolean, output: string } => {
+    const symbols = inputString.split('')
+    let state = machine.start
+    let output = machine.outputs[state] || ''
+
+    for (let i = 0; i < symbols.length; i++) {
+      const symbol = symbols[i]
+      const transition = machine.transitions.find(t => t.from === state && t.input === symbol)
+      
+      if (!transition) {
+        return { success: false, output }
+      }
+
+      state = transition.to
+      output += machine.outputs[state] || ''
+    }
+
+    return { success: true, output }
+  }
 
   const transitions = useMemo(() => {
     return machine.transitions.map((t, idx) => ({ ...t, key: `${t.from}→${t.to}→${idx}` }))
@@ -57,13 +79,25 @@ export default function MooreEditor() {
     if (mode === 'addState' || e.shiftKey) {
       const x = Math.round(rawX / 20) * 20
       const y = Math.round(rawY / 20) * 20
+      const newStateId = `q${machine.states.length}`
       addState({ x, y })
       setMode('select')
+      
+      // Perguntar automaticamente a saída do novo estado
+      setTimeout(async () => {
+        const output = await prompt(`Definir saída para ${newStateId}:`, '')
+        if (output !== null) {
+          setOutput(newStateId, output.trim() === '' ? 'λ' : output)
+        } else {
+          // Se cancelar, define como λ também
+          setOutput(newStateId, 'λ')
+        }
+      }, 100)
     } else {
       setSelected(null)
       setEditingTransition(null)
     }
-  }, [mode, addState, setMode, setSelected, zoom, pan])
+  }, [mode, addState, setMode, setSelected, zoom, pan, machine.states.length, prompt, setOutput])
 
   const onStateMouseDown = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -122,9 +156,13 @@ export default function MooreEditor() {
   const onStateRightClick = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const output = await prompt(`Definir saída para ${id}:`, machine.outputs[id] || '')
+    const currentOutput = machine.outputs[id] || ''
+    // Se for λ, mostra vazio no input
+    const displayValue = currentOutput === 'λ' ? '' : currentOutput
+    const output = await prompt(`Definir saída para ${id}:`, displayValue)
     if (output !== null) {
-      setOutput(id, output)
+      // Se o usuário deixar vazio, define como λ
+      setOutput(id, output.trim() === '' ? 'λ' : output)
     }
   }, [setOutput, machine.outputs, prompt])
 
@@ -310,7 +348,7 @@ export default function MooreEditor() {
 
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
-                      const label = t.input
+                      const label = t.input || 'λ'
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       const isThisEditing = editingTransition?.from === t.from && 
                                            editingTransition?.to === t.to && 
@@ -434,30 +472,35 @@ export default function MooreEditor() {
                   
                   <text textAnchor="middle" dy="5" fontSize="14" fontWeight="bold" fill="#333">{id}</text>
                   
-                  {output && (
-                    <g>
-                      <rect
-                        x={-output.length * 4.5}
-                        y={30}
-                        width={output.length * 9}
-                        height={20}
-                        fill="rgba(255, 255, 255, 0.9)"
-                        stroke="#222"
-                        strokeWidth="1"
-                        rx="3"
-                      />
-                      <text
-                        x="0"
-                        y="44"
-                        textAnchor="middle"
-                        fontSize="16"
-                        fill="#222"
-                        fontWeight="bold"
-                      >
-                        {output}
-                      </text>
-                    </g>
-                  )}
+                  <g>
+                    {(() => {
+                      const displayOutput = output || 'λ'
+                      return (
+                        <>
+                          <rect
+                            x={-displayOutput.length * 4.5}
+                            y={30}
+                            width={displayOutput.length * 9}
+                            height={20}
+                            fill="rgba(255, 255, 255, 0.9)"
+                            stroke="#222"
+                            strokeWidth="1"
+                            rx="3"
+                          />
+                          <text
+                            x="0"
+                            y="44"
+                            textAnchor="middle"
+                            fontSize="16"
+                            fill="#222"
+                            fontWeight="bold"
+                          >
+                            {displayOutput}
+                          </text>
+                        </>
+                      )
+                    })()}
+                  </g>
                   
                   {!simulation.isSimulating && (
                     <g
@@ -537,6 +580,20 @@ export default function MooreEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Máquina de Moore
+        </div>
+
         {/* Painel de Saída */}
         {simulation.isSimulating && (
           <div style={{ padding: 12, borderBottom: '2px solid #ddd', background: '#fff' }}>
@@ -571,18 +628,67 @@ export default function MooreEditor() {
         {/* Simulador */}
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>▶️ Simulação</h4>
-          {!simulation.isSimulating ? (
+          {!simulation.isSimulating && !batchResults ? (
             <MultiInputPanel
               onSimulate={(inputs) => {
                 if (inputs.length === 1) {
+                  setBatchResults(null)
                   startSimulation(inputs[0])
                 } else {
-                  startSimulation(inputs[0])
+                  // Simulação em lote
+                  const results = inputs.map(input => {
+                    const result = simulateComplete(input)
+                    return { input, ...result }
+                  })
+                  setBatchResults(results)
                 }
               }}
               disabled={simulation.isSimulating}
               placeholder="Entrada (ex: aabb)"
             />
+          ) : batchResults ? (
+            <>
+              <div style={{
+                padding: 8,
+                background: '#f0f9ff',
+                border: '2px solid #0ea5e9',
+                borderRadius: 4,
+                marginBottom: 8,
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                📊 Simulação em Lote ({batchResults.filter(r => r.success).length}/{batchResults.length} completas)
+              </div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+                {batchResults.map((r, i) => (
+                  <div key={i} style={{
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    background: r.success ? '#d4edda' : '#f8d7da',
+                    border: `1px solid ${r.success ? '#28a745' : '#dc3545'}`,
+                    borderRadius: 4,
+                    fontSize: 12
+                  }}>
+                    {i + 1}. "{r.input}" → {r.success ? `✅ Saída: "${r.output}"` : `❌ ERRO (entrada inválida)`}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setBatchResults(null)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: 'bold'
+                }}
+              >
+                ◀️ Nova Simulação
+              </button>
+            </>
           ) : (
             <>
               <div style={{
@@ -769,9 +875,13 @@ export default function MooreEditor() {
                 </button>
                 <button
                   onClick={async () => {
-                    const output = await prompt(`Definir saída para ${selected}:`, machine.outputs[selected] || '')
+                    const currentOutput = machine.outputs[selected] || ''
+                    // Se for λ, mostra vazio no input
+                    const displayValue = currentOutput === 'λ' ? '' : currentOutput
+                    const output = await prompt(`Definir saída para ${selected}:`, displayValue)
                     if (output !== null) {
-                      setOutput(selected, output)
+                      // Se o usuário deixar vazio, define como λ
+                      setOutput(selected, output.trim() === '' ? 'λ' : output)
                     }
                   }}
                   style={{ padding: '6px', fontSize: 12, cursor: 'pointer', background: '#fff', border: '1px solid #ddd', borderRadius: 4 }}
@@ -859,6 +969,8 @@ function TransitionArrow({
 }) {
   if (!from || !to) return null
 
+  const displayLabel = label || 'λ'
+
   if (isLoop) {
     const cx = from.x
     const cy = from.y - 45
@@ -876,9 +988,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={20}
           fill="rgba(255, 255, 255, 0.9)"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -893,7 +1005,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : '#222'}
           fontWeight="bold"
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -928,9 +1040,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -945,7 +1057,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

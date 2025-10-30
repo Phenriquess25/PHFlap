@@ -22,6 +22,7 @@ export default function TMEditor() {
   const [currentState, setCurrentState] = useState('')
   const [accepted, setAccepted] = useState(false)
   const [steps, setSteps] = useState<any[]>([])
+  const [batchResults, setBatchResults] = useState<Array<{input: string, accepted: boolean}> | null>(null)
 
     if (!tm) {
       return (
@@ -110,6 +111,39 @@ export default function TMEditor() {
 
     const removeTransition = (idx: number) => {
       setTM({ ...tm, transitions: tm.transitions.filter((_, i) => i !== idx) })
+    }
+
+    // Simula completamente uma entrada e retorna se foi aceita
+    const simulateComplete = (inputString: string): boolean => {
+      let currentTape = inputString.split('')
+      currentTape.push(BLANK, BLANK, BLANK)
+      let head = 0
+      let state = tm.start
+      const maxSteps = 10000 // limite para evitar loop infinito
+
+      for (let i = 0; i < maxSteps; i++) {
+        if (tm.accept.includes(state)) return true
+        
+        const symbol = currentTape[head] || BLANK
+        const transition = tm.transitions.find(t => t.from === state && t.read === symbol)
+        
+        if (!transition) {
+          return tm.accept.includes(state)
+        }
+
+        currentTape[head] = transition.write
+        
+        if (transition.move === 'L') {
+          head = Math.max(0, head - 1)
+        } else if (transition.move === 'R') {
+          head = head + 1
+          if (head >= currentTape.length) currentTape.push(BLANK)
+        }
+        
+        state = transition.to
+      }
+
+      return tm.accept.includes(state)
     }
 
     const startSimulation = (inputString: string) => {
@@ -446,7 +480,7 @@ export default function TMEditor() {
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
                       const moveArrow = t.move === 'L' ? '←' : t.move === 'R' ? '→' : '•'
-                      const label = `${t.read}→${t.write},${moveArrow}`
+                      const label = `${t.read || 'λ'}→${t.write || 'λ'},${moveArrow}`
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
                       return (
@@ -498,7 +532,7 @@ export default function TMEditor() {
                   key={t.key}
                   from={positions[t.from]}
                   to={positions[t.to]}
-                    label={`${t.read}→${t.write},${moveArrow}`}
+                    label={`${t.read || 'λ'}→${t.write || 'λ'},${moveArrow}`}
                   isLoop={t.from === t.to}
                   isHovered={isHovered}
                   isEditing={isEditing}
@@ -648,6 +682,20 @@ export default function TMEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Máquina de Turing
+        </div>
+
         {/* Visualizador de Fita */}
         {isSimulating && (
           <div style={{ padding: 12, borderBottom: '2px solid #ddd', background: '#fff' }}>
@@ -700,19 +748,68 @@ export default function TMEditor() {
         {/* Simulador */}
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>▶️ Simulação</h4>
-          {!isSimulating ? (
+          {!isSimulating && !batchResults ? (
             <MultiInputPanel
               onSimulate={(inputs) => {
                 if (inputs.length === 1) {
+                  // Simulação passo-a-passo
+                  setBatchResults(null)
                   startSimulation(inputs[0])
                 } else {
-                  // Por enquanto simula apenas a primeira
-                  startSimulation(inputs[0])
+                  // Simulação em lote
+                  const results = inputs.map(input => ({
+                    input,
+                    accepted: simulateComplete(input)
+                  }))
+                  setBatchResults(results)
                 }
               }}
               disabled={isSimulating}
               placeholder="Entrada (ex: 0011)"
             />
+          ) : batchResults ? (
+            <>
+              <div style={{
+                padding: 8,
+                background: '#f0f9ff',
+                border: '2px solid #0ea5e9',
+                borderRadius: 4,
+                marginBottom: 8,
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                📊 Simulação em Lote ({batchResults.filter(r => r.accepted).length}/{batchResults.length} aceitas)
+              </div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+                {batchResults.map((r, i) => (
+                  <div key={i} style={{
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    background: r.accepted ? '#d4edda' : '#f8d7da',
+                    border: `1px solid ${r.accepted ? '#28a745' : '#dc3545'}`,
+                    borderRadius: 4,
+                    fontSize: 12
+                  }}>
+                    {i + 1}. "{r.input}" → {r.accepted ? '✅ ACEITA' : '❌ REJEITA'}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setBatchResults(null)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: 'bold'
+                }}
+              >
+                ◀️ Nova Simulação
+              </button>
+            </>
           ) : (
             <>
               <div style={{
@@ -781,7 +878,7 @@ export default function TMEditor() {
         </div>
 
         {/* Ferramentas */}
-        <div style={{ padding: 12, overflow: 'auto', flex: 1, background: '#f9f9f9' }}>
+        <div style={{ padding: 12, overflow: 'auto', flex: 1, minHeight: 0, background: '#f9f9f9' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>🔧 Ferramentas</h4>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -969,6 +1066,8 @@ function TransitionArrow({
 }) {
   if (!from || !to) return null
 
+  const displayLabel = label || 'λ'
+
   if (isLoop) {
     const cx = from.x
     const cy = from.y - 45
@@ -986,9 +1085,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={20}
           fill="rgba(255, 255, 255, 0.9)"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -1003,7 +1102,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : '#222'}
           fontWeight="bold"
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -1038,9 +1137,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -1055,7 +1154,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

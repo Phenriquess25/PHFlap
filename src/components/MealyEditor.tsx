@@ -39,6 +39,29 @@ export default function MealyEditor() {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
+  const [batchResults, setBatchResults] = useState<Array<{input: string, success: boolean, output: string}> | null>(null)
+
+  // Função para simular completamente uma entrada
+  const simulateComplete = (inputString: string): { success: boolean, output: string } => {
+    const symbols = inputString.split('')
+    let state = machine.start
+    let output = ''
+
+    for (let i = 0; i < symbols.length; i++) {
+      const symbol = symbols[i]
+      const transition = machine.transitions.find(t => t.from === state && t.input === symbol)
+      
+      if (!transition) {
+        return { success: false, output }
+      }
+
+      output += transition.output
+      state = transition.to
+    }
+
+    return { success: true, output }
+  }
+
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
 
   const transitions = useMemo(() => {
@@ -311,7 +334,7 @@ export default function MealyEditor() {
 
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
-                      const label = `${t.input}/${t.output}`
+                      const label = `${t.input || 'λ'}/${t.output || 'λ'}`
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
                       return (
@@ -362,7 +385,7 @@ export default function MealyEditor() {
                   key={t.key}
                   from={positions[t.from]}
                   to={positions[t.to]}
-                  label={`${t.input}/${t.output}`}
+                  label={`${t.input || 'λ'}/${t.output || 'λ'}`}
                   isLoop={t.from === t.to}
                   isHovered={isHovered}
                   isEditing={isEditing}
@@ -507,6 +530,20 @@ export default function MealyEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Máquina de Mealy
+        </div>
+
         {/* Painel de Saída */}
         {simulation.isSimulating && (
           <div style={{ padding: 12, borderBottom: '2px solid #ddd', background: '#fff' }}>
@@ -541,21 +578,67 @@ export default function MealyEditor() {
         {/* Simulador */}
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>▶️ Simulação</h4>
-          {!simulation.isSimulating ? (
+          {!simulation.isSimulating && !batchResults ? (
             <MultiInputPanel
               onSimulate={(inputs) => {
-                // Simular múltiplas entradas ou única
                 if (inputs.length === 1) {
+                  setBatchResults(null)
                   startSimulation(inputs[0])
                 } else {
-                  // TODO: Implementar simulação em lote no futuro
-                  // Por enquanto, simula a primeira
-                  startSimulation(inputs[0])
+                  // Simulação em lote
+                  const results = inputs.map(input => {
+                    const result = simulateComplete(input)
+                    return { input, ...result }
+                  })
+                  setBatchResults(results)
                 }
               }}
               disabled={simulation.isSimulating}
               placeholder="Entrada (ex: aabb)"
             />
+          ) : batchResults ? (
+            <>
+              <div style={{
+                padding: 8,
+                background: '#f0f9ff',
+                border: '2px solid #0ea5e9',
+                borderRadius: 4,
+                marginBottom: 8,
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                📊 Simulação em Lote ({batchResults.filter(r => r.success).length}/{batchResults.length} completas)
+              </div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+                {batchResults.map((r, i) => (
+                  <div key={i} style={{
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    background: r.success ? '#d4edda' : '#f8d7da',
+                    border: `1px solid ${r.success ? '#28a745' : '#dc3545'}`,
+                    borderRadius: 4,
+                    fontSize: 12
+                  }}>
+                    {i + 1}. "{r.input}" → {r.success ? `✅ Saída: "${r.output}"` : `❌ ERRO (entrada inválida)`}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setBatchResults(null)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: 'bold'
+                }}
+              >
+                ◀️ Nova Simulação
+              </button>
+            </>
           ) : (
             <>
               <div style={{
@@ -815,6 +898,8 @@ function TransitionArrow({
 }) {
   if (!from || !to) return null
 
+  const displayLabel = label || 'λ'
+
   if (isLoop) {
     const cx = from.x
     const cy = from.y - 45
@@ -832,9 +917,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={20}
           fill="rgba(255, 255, 255, 0.9)"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -849,7 +934,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : '#222'}
           fontWeight="bold"
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -884,9 +969,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -901,7 +986,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

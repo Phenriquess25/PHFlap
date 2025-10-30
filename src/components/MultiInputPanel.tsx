@@ -109,7 +109,8 @@ export default function MultiInputPanel({ onSimulate, disabled = false, placehol
         <div style={{ position: 'relative' }}>
           <div 
             style={{ 
-              height: multiInputHeight, 
+              height: multiInputHeight,
+              maxHeight: '300px',
               overflow: 'auto', 
               marginBottom: 8,
               border: '1px solid #ddd',

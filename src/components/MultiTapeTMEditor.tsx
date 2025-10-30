@@ -40,6 +40,57 @@ export default function MultiTapeTMEditor() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [batchResults, setBatchResults] = useState<Array<{input: string, accepted: boolean}> | null>(null)
+
+  // Função para simular completamente uma entrada
+  const simulateComplete = (inputString: string): boolean => {
+    const tapes = inputString.split('').map(c => [c])
+    const heads = Array(machine.tapeCount).fill(0)
+    let state = machine.start
+    const maxSteps = 10000
+    const BLANK = '_'
+
+    for (let step = 0; step < maxSteps; step++) {
+      if (machine.accept.includes(state)) return true
+
+      const reads = heads.map((h, tapeIdx) => {
+        const tape = tapes[tapeIdx] || []
+        return tape[h] || BLANK
+      })
+
+      const transition = machine.transitions.find(t => 
+        t.from === state && 
+        t.reads.every((r, i) => r === reads[i] || r === BLANK)
+      )
+
+      if (!transition) {
+        return machine.accept.includes(state)
+      }
+
+      // Escreve nas fitas
+      transition.writes.forEach((write, tapeIdx) => {
+        if (!tapes[tapeIdx]) tapes[tapeIdx] = []
+        tapes[tapeIdx][heads[tapeIdx]] = write
+      })
+
+      // Move as cabeças
+      transition.moves.forEach((move, tapeIdx) => {
+        if (move === 'L') {
+          heads[tapeIdx] = Math.max(0, heads[tapeIdx] - 1)
+        } else if (move === 'R') {
+          heads[tapeIdx]++
+          if (!tapes[tapeIdx]) tapes[tapeIdx] = []
+          while (tapes[tapeIdx].length <= heads[tapeIdx]) {
+            tapes[tapeIdx].push(BLANK)
+          }
+        }
+      })
+
+      state = transition.to
+    }
+
+    return machine.accept.includes(state)
+  }
 
   const transitions = useMemo(() => {
     return machine.transitions.map((t, idx) => ({ ...t, key: `${t.from}→${t.to}→${idx}`, idx }))
@@ -387,7 +438,7 @@ export default function MultiTapeTMEditor() {
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
                       const label = t.reads.map((r: string, i: number) => 
-                        `${r === BLANK ? '_' : r}→${t.writes[i] === BLANK ? '_' : t.writes[i]},${t.moves[i]}`
+                        `${r === BLANK ? '_' : (r || 'λ')}→${t.writes[i] === BLANK ? '_' : (t.writes[i] || 'λ')},${t.moves[i]}`
                       ).join(' | ')
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
@@ -440,7 +491,7 @@ export default function MultiTapeTMEditor() {
               const isEditing = editingTransition === idx
 
               const label = reads.map((r: string, i: number) => 
-                `${r === BLANK ? '_' : r}→${writes[i] === BLANK ? '_' : writes[i]},${moves[i]}`
+                `${r === BLANK ? '_' : (r || 'λ')}→${writes[i] === BLANK ? '_' : (writes[i] || 'λ')},${moves[i]}`
               ).join(' | ')
 
               return (
@@ -598,6 +649,20 @@ export default function MultiTapeTMEditor() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#f9f9f9' }}>
+        {/* Header com nome do editor */}
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff', 
+          color: '#333',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          textAlign: 'center',
+          borderBottom: '2px solid #667eea',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          Máquina de Turing (Multi-fita)
+        </div>
+
         {simulation.isSimulating && currentConfig && (
           <div style={{ padding: 12, borderBottom: '2px solid #ddd', background: '#fff', maxHeight: '40%', overflow: 'auto' }}>
             <h4 style={{ margin: '0 0 8px 0' }}>📼 Fitas ({machine.tapeCount})</h4>
@@ -655,16 +720,67 @@ export default function MultiTapeTMEditor() {
 
         <div style={{ padding: 12, borderBottom: '1px solid #ddd', background: '#fff' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>▶️ Simulação</h4>
-          {!simulation.isSimulating ? (
+          {!simulation.isSimulating && !batchResults ? (
             <MultiInputPanel
               onSimulate={(inputs) => {
                 if (inputs.length === 1) {
+                  setBatchResults(null)
                   startSimulation(inputs[0])
+                } else {
+                  // Simulação em lote
+                  const results = inputs.map(input => ({
+                    input,
+                    accepted: simulateComplete(input)
+                  }))
+                  setBatchResults(results)
                 }
               }}
               disabled={simulation.isSimulating}
               placeholder="Entrada (ex: 0011)"
             />
+          ) : batchResults ? (
+            <>
+              <div style={{
+                padding: 8,
+                background: '#f0f9ff',
+                border: '2px solid #0ea5e9',
+                borderRadius: 4,
+                marginBottom: 8,
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                📊 Simulação em Lote ({batchResults.filter(r => r.accepted).length}/{batchResults.length} aceitas)
+              </div>
+              <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+                {batchResults.map((r, i) => (
+                  <div key={i} style={{
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    background: r.accepted ? '#d4edda' : '#f8d7da',
+                    border: `1px solid ${r.accepted ? '#28a745' : '#dc3545'}`,
+                    borderRadius: 4,
+                    fontSize: 12
+                  }}>
+                    {i + 1}. "{r.input}" → {r.accepted ? '✅ ACEITA' : '❌ REJEITA'}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setBatchResults(null)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#6c757d',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontWeight: 'bold'
+                }}
+              >
+                ◀️ Nova Simulação
+              </button>
+            </>
           ) : (
             <>
               <div style={{
@@ -732,7 +848,7 @@ export default function MultiTapeTMEditor() {
           )}
         </div>
 
-        <div style={{ padding: 12, overflow: 'auto', flex: 1, background: '#f9f9f9' }}>
+        <div style={{ padding: 12, overflow: 'auto', flex: 1, minHeight: 0, background: '#f9f9f9' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>🔧 Ferramentas</h4>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -944,6 +1060,8 @@ function TransitionArrow({
 }) {
   if (!from || !to) return null
 
+  const displayLabel = label || 'λ'
+
   if (isLoop) {
     const cx = from.x
     const cy = from.y - 45
@@ -961,9 +1079,9 @@ function TransitionArrow({
           markerEnd="url(#arrowhead)"
         />
         <rect
-          x={cx - label.length * 4.5}
+          x={cx - displayLabel.length * 4.5}
           y={cy - r - 25}
-          width={label.length * 9}
+          width={displayLabel.length * 9}
           height={20}
           fill="rgba(255, 255, 255, 0.9)"
           stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -978,7 +1096,7 @@ function TransitionArrow({
           fill={isEditing ? '#ff6600' : '#222'}
           fontWeight="bold"
         >
-          {label}
+          {displayLabel}
         </text>
       </g>
     )
@@ -1013,9 +1131,9 @@ function TransitionArrow({
         markerEnd="url(#arrowhead)"
       />
       <rect
-        x={ctrlX - label.length * 4.5}
+        x={ctrlX - displayLabel.length * 4.5}
         y={ctrlY - 25}
-        width={label.length * 9}
+        width={displayLabel.length * 9}
         height={20}
         fill="rgba(255, 255, 255, 0.9)"
         stroke={isEditing ? '#ff6600' : isHovered ? '#0066ff' : '#ddd'}
@@ -1030,7 +1148,7 @@ function TransitionArrow({
         fill={isEditing ? '#ff6600' : '#222'}
         fontWeight="bold"
       >
-        {label}
+        {displayLabel}
       </text>
     </g>
   )

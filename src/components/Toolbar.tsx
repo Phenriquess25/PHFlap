@@ -1,5 +1,6 @@
 import { memo, useState } from 'react'
 import { useAutomataStore } from '@state/store'
+import { usePrompt } from './PromptModal'
 
 type Props = {
   onBack?: () => void
@@ -26,9 +27,11 @@ export default memo(function Toolbar({
 }: Props) {
   const { fa, createNewFA, clearFA } = useAutomataStore()
   const [showInputModal, setShowInputModal] = useState(false)
+  const { prompt, PromptComponent } = usePrompt()
   
   return (
     <>
+      {PromptComponent}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid #ddd', background: '#f5f5f5' }}>
         {/* Botão Voltar */}
         {onBack && (
@@ -81,8 +84,9 @@ export default memo(function Toolbar({
           📝 Novo AFD
         </button>
         <button
-          onClick={() => {
-            if (window.confirm('Limpar todos os estados? (mantém o tipo)')) {
+          onClick={async () => {
+            const confirm = await prompt('Limpar todos os estados? (mantém o tipo)\n\nDigite "sim" para confirmar:', '')
+            if (confirm?.toLowerCase() === 'sim') {
               clearFA()
             }
           }}
