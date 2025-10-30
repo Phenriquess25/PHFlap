@@ -201,6 +201,7 @@ Os arquivos otimizados estarão em `dist/`
 - Estado atual (simulação) fica amarelo
 
 💡 **Transições**
+- **Ctrl+Click em um estado** para criar transições rapidamente
 - Labels com **fundo branco** e **fonte 16px** em negrito
 - Hover muda cor da seta para azul
 - Transições em edição ficam laranja

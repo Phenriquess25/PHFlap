@@ -771,6 +771,9 @@ export default function PDAEditor() {
             <div style={{ marginTop: 6, fontSize: 11, color: '#6a1b9a', fontStyle: 'italic' }}>
               💡 Transições: input, pop → push
             </div>
+            <div style={{ marginTop: 4, fontSize: 11, color: '#6a1b9a', fontStyle: 'italic' }}>
+              💡 Ctrl+Click para criar transições
+            </div>
           </div>
 
           {selected && (

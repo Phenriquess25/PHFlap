@@ -688,6 +688,9 @@ export default function CanvasEditor() {
             <div><strong>Alfabeto:</strong> {fa.alphabet.join(', ')}</div>
             <div><strong>Início:</strong> {fa.start || '—'}</div>
             <div><strong>Finais:</strong> {fa.accept.length > 0 ? fa.accept.join(', ') : '—'}</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: fa.type === 'NFA' ? '#1976d2' : '#f57c00', fontStyle: 'italic' }}>
+              💡 Ctrl+Click para criar transições
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>

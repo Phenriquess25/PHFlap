@@ -50,26 +50,26 @@ export const useAutomataStore = create<Store>((set) => ({
     const newFA: FA = type === 'NFA'
       ? {
           type: 'NFA',
-          states: ['q0'],
+          states: [],
           alphabet: ['a', 'b'],
-          start: 'q0',
+          start: '',
           accept: [],
-          transitions: { q0: {} }
+          transitions: {}
         }
       : {
           type: 'DFA',
-          states: ['q0'],
+          states: [],
           alphabet: ['a', 'b'],
-          start: 'q0',
+          start: '',
           accept: [],
-          transitions: { q0: {} }
+          transitions: {}
         }
     set({ 
       fa: newFA, 
       trace: null, 
       selected: null, 
       tempFrom: null, 
-      positions: { q0: { x: 200, y: 200 } }
+      positions: {}
     })
   },
   clearFA: () => set(state => {
@@ -120,7 +120,6 @@ export const useAutomataStore = create<Store>((set) => ({
       ...state,
       fa: nextFA,
       positions: { ...state.positions, [newId]: pos ?? { x: 100 + 60 * fa.states.length, y: 100 } },
-      selected: newId,
     }
   }),
   removeState: (id) => set(state => {

@@ -119,14 +119,14 @@ export default function MooreEditor() {
     setStart(id)
   }, [setStart])
 
-  const onStateRightClick = useCallback((id: string, e: React.MouseEvent) => {
+  const onStateRightClick = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const output = window.prompt(`Definir saída para ${id}:`, machine.outputs[id] || '')
+    const output = await prompt(`Definir saída para ${id}:`, machine.outputs[id] || '')
     if (output !== null) {
       setOutput(id, output)
     }
-  }, [setOutput, machine.outputs])
+  }, [setOutput, machine.outputs, prompt])
 
   const onTransitionClick = useCallback((t: typeof transitions[0], e: React.MouseEvent) => {
     e.stopPropagation()
@@ -435,16 +435,28 @@ export default function MooreEditor() {
                   <text textAnchor="middle" dy="5" fontSize="14" fontWeight="bold" fill="#333">{id}</text>
                   
                   {output && (
-                    <text
-                      x="0"
-                      y="42"
-                      textAnchor="middle"
-                      fontSize="12"
-                      fill="#10B981"
-                      fontWeight="bold"
-                    >
-                      {output}
-                    </text>
+                    <g>
+                      <rect
+                        x={-output.length * 4.5}
+                        y={30}
+                        width={output.length * 9}
+                        height={20}
+                        fill="rgba(255, 255, 255, 0.9)"
+                        stroke="#222"
+                        strokeWidth="1"
+                        rx="3"
+                      />
+                      <text
+                        x="0"
+                        y="44"
+                        textAnchor="middle"
+                        fontSize="16"
+                        fill="#222"
+                        fontWeight="bold"
+                      >
+                        {output}
+                      </text>
+                    </g>
                   )}
                   
                   {!simulation.isSimulating && (
@@ -739,6 +751,9 @@ export default function MooreEditor() {
             <div style={{ marginTop: 6, fontSize: 11, color: '#2e7d32', fontStyle: 'italic' }}>
               💡 Saídas nos estados (abaixo em verde)
             </div>
+            <div style={{ marginTop: 4, fontSize: 11, color: '#2e7d32', fontStyle: 'italic' }}>
+              💡 Ctrl+Click para criar transições
+            </div>
           </div>
 
           {selected && (
@@ -753,8 +768,8 @@ export default function MooreEditor() {
                   🚀 Definir como Inicial
                 </button>
                 <button
-                  onClick={() => {
-                    const output = window.prompt(`Definir saída para ${selected}:`, machine.outputs[selected] || '')
+                  onClick={async () => {
+                    const output = await prompt(`Definir saída para ${selected}:`, machine.outputs[selected] || '')
                     if (output !== null) {
                       setOutput(selected, output)
                     }

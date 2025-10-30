@@ -724,6 +724,9 @@ export default function MealyEditor() {
             <div style={{ marginTop: 6, fontSize: 11, color: '#1976d2', fontStyle: 'italic' }}>
               💡 Saídas nas transições (input/output)
             </div>
+            <div style={{ marginTop: 4, fontSize: 11, color: '#1976d2', fontStyle: 'italic' }}>
+              💡 Ctrl+Click para criar transições
+            </div>
           </div>
 
           {selected && (

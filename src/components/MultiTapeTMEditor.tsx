@@ -819,6 +819,9 @@ export default function MultiTapeTMEditor() {
             <div><strong>Nº Fitas:</strong> {machine.tapeCount}</div>
             <div><strong>Início:</strong> {machine.start || '—'}</div>
             <div><strong>Finais:</strong> {machine.accept.length > 0 ? machine.accept.join(', ') : '—'}</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: '#f57c00', fontStyle: 'italic' }}>
+              💡 Ctrl+Click para criar transições
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>

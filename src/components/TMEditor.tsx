@@ -867,6 +867,9 @@ export default function TMEditor() {
             <div><strong>Fita:</strong> {tm.tapeAlphabet.join(', ')}</div>
             <div><strong>Início:</strong> {tm.start || '—'}</div>
             <div><strong>Finais:</strong> {tm.accept.length > 0 ? tm.accept.join(', ') : '—'}</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: '#f57c00', fontStyle: 'italic' }}>
+              💡 Ctrl+Click para criar transições
+            </div>
           </div>
 
           {selected && (

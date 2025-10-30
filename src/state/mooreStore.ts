@@ -96,7 +96,25 @@ export const useMooreStore = create<MooreStore>((set, get) => ({
   },
   setOutput: (id, output) => {
     const { machine } = get()
-    set({ machine: { ...machine, outputs: { ...machine.outputs, [id]: output } } })
+
+    // Update per-state outputs map
+    const newOutputs = { ...machine.outputs, [id]: output }
+
+    // Maintain the outputAlphabet: add the new symbol if present, or
+    // recompute the alphabet when output is cleared so it stays consistent
+    let newOutputAlphabet = Array.isArray(machine.outputAlphabet) ? [...machine.outputAlphabet] : []
+
+    if (output && output.trim() !== '') {
+      if (!newOutputAlphabet.includes(output)) {
+        newOutputAlphabet.push(output)
+      }
+    } else {
+      // If output was cleared (empty string), recompute alphabet from remaining outputs
+      const usedOutputs = Object.values(newOutputs).filter(v => v && v.trim() !== '')
+      newOutputAlphabet = Array.from(new Set(usedOutputs))
+    }
+
+    set({ machine: { ...machine, outputs: newOutputs, outputAlphabet: newOutputAlphabet } })
   },
   beginTransition: (from) => {
     set({ tempFrom: from, mode: 'addTransition' })
