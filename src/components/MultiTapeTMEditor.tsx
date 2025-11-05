@@ -1,5 +1,5 @@
 import { useMultiTMStore } from '@state/multiTMStore'
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { BLANK, MultiTMTransition, Direction } from '@model/turing'
 import MultiInputPanel from './MultiInputPanel'
 import { usePrompt } from './PromptModal'
@@ -313,6 +313,30 @@ export default function MultiTapeTMEditor() {
     URL.revokeObjectURL(url)
   }, [machine, positions])
 
+  // Expor handleSave globalmente para o prompt de fechamento do app
+  useEffect(() => {
+    // @ts-ignore - attaching for global use by App beforeunload
+    // @ts-ignore - attaching for global use by App beforeunload
+    window.__phflap_handleSave = handleSave
+    // @ts-ignore
+    window.__phflap_getSaveData = () => {
+      const data = {
+        machine: machine,
+        positions: positions,
+        version: '1.0.0',
+        type: 'MULTI_TM',
+        timestamp: new Date().toISOString()
+      }
+      return { filename: `multi-tape-tm-${Date.now()}.json`, json: JSON.stringify(data, null, 2) }
+    }
+    return () => {
+      // @ts-ignore
+      if (window.__phflap_handleSave === handleSave) delete window.__phflap_handleSave
+      // @ts-ignore
+      if (window.__phflap_getSaveData) delete window.__phflap_getSaveData
+    }
+  }, [handleSave])
+
   // Função para carregar máquina de Turing multi-fita
   const handleLoad = useCallback(() => {
     const input = document.createElement('input')
@@ -438,7 +462,7 @@ export default function MultiTapeTMEditor() {
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
                       const label = t.reads.map((r: string, i: number) => 
-                        `${r === BLANK ? '_' : (r || 'λ')}→${t.writes[i] === BLANK ? '_' : (t.writes[i] || 'λ')},${t.moves[i]}`
+                        `${r === BLANK ? '_' : (r || 'λ')}→${t.writes[i] === BLANK ? '_' : (t.writes[i] || 'λ')},${t.moves[i] === 'L' ? '⬅️' : t.moves[i] === 'R' ? '➡️' : '⏸️'}`
                       ).join(' | ')
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
@@ -491,7 +515,7 @@ export default function MultiTapeTMEditor() {
               const isEditing = editingTransition === idx
 
               const label = reads.map((r: string, i: number) => 
-                `${r === BLANK ? '_' : (r || 'λ')}→${writes[i] === BLANK ? '_' : (writes[i] || 'λ')},${moves[i]}`
+                `${r === BLANK ? '_' : (r || 'λ')}→${writes[i] === BLANK ? '_' : (writes[i] || 'λ')},${moves[i] === 'L' ? '⬅️' : moves[i] === 'R' ? '➡️' : '⏸️'}`
               ).join(' | ')
 
               return (

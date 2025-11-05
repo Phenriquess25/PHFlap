@@ -8,10 +8,42 @@ import PDAEditor from '@components/PDAEditor'
 import MultiTapeTMEditor from '@components/MultiTapeTMEditor'
 import TMBlocksEditor from '@components/TMBlocksEditor'
 import { useState } from 'react'
+import { useEffect } from 'react'
 import { ModelType } from './types/models'
 
 export default function App() {
   const [activeModel, setActiveModel] = useState<ModelType | null>(null) // Inicia na tela de seleção
+
+  // Ask to save when closing the app while inside an editor (works in browser and Electron)
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!activeModel) return
+
+      // Ask user if they want to save
+      const wantSave = window.confirm('Você está dentro de um editor. Deseja salvar antes de sair?\nOK = Salvar e sair, Cancel = Perguntar se deseja sair sem salvar.')
+      if (wantSave) {
+        try {
+          // call editor-provided save function if available
+          // @ts-ignore
+          if (window.__phflap_handleSave) window.__phflap_handleSave()
+        } catch (err) {
+          // ignore
+        }
+        return
+      }
+
+      const exitNoSave = window.confirm('Sair sem salvar?\nOK = Sair sem salvar, Cancel = Voltar ao editor')
+      if (!exitNoSave) {
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+      // else allow unload without saving
+    }
+
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [activeModel])
 
   // Se nenhum modelo está ativo, mostrar tela inicial
   if (!activeModel) {

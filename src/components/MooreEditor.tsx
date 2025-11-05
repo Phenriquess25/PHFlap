@@ -1,5 +1,5 @@
 import { useMooreStore } from '@state/mooreStore'
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import MultiInputPanel from './MultiInputPanel'
 import { usePrompt } from './PromptModal'
 
@@ -216,6 +216,28 @@ export default function MooreEditor() {
     link.click()
     URL.revokeObjectURL(url)
   }, [machine, positions])
+
+  useEffect(() => {
+    // @ts-ignore
+    window.__phflap_handleSave = handleSave
+    // @ts-ignore
+    window.__phflap_getSaveData = () => {
+      const data = {
+        machine: machine,
+        positions: positions,
+        version: '1.0.0',
+        type: 'MOORE',
+        timestamp: new Date().toISOString()
+      }
+      return { filename: `moore-${Date.now()}.json`, json: JSON.stringify(data, null, 2) }
+    }
+    return () => {
+      // @ts-ignore
+      if (window.__phflap_handleSave === handleSave) delete window.__phflap_handleSave
+      // @ts-ignore
+      if (window.__phflap_getSaveData) delete window.__phflap_getSaveData
+    }
+  }, [handleSave])
 
   // Função para carregar máquina de Moore
   const handleLoad = useCallback(() => {

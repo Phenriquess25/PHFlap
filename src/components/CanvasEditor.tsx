@@ -302,6 +302,29 @@ export default function CanvasEditor() {
     URL.revokeObjectURL(url)
   }, [fa, positions])
 
+  // expose save handler to global (used by Electron/main close handler and beforeunload)
+  useEffect(() => {
+    // @ts-ignore
+    window.__phflap_handleSave = handleSave
+    // @ts-ignore
+    window.__phflap_getSaveData = () => {
+      const data = {
+        automaton: fa,
+        positions: positions,
+        version: '1.0.0',
+        type: 'FA',
+        timestamp: new Date().toISOString()
+      }
+      return { filename: `automato-${Date.now()}.json`, json: JSON.stringify(data, null, 2) }
+    }
+    return () => {
+      // @ts-ignore
+      if (window.__phflap_handleSave === handleSave) delete window.__phflap_handleSave
+      // @ts-ignore
+      if (window.__phflap_getSaveData) delete window.__phflap_getSaveData
+    }
+  }, [handleSave])
+
   // Função para carregar autômato
   const handleLoad = useCallback(() => {
     const input = document.createElement('input')

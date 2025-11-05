@@ -1,5 +1,5 @@
 import { useTMStore } from '@state/tmStore'
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { TuringMachine, TMTransition, Direction, BLANK } from '@model/turing'
 import { StateId, Position } from '@model/automata'
 import MultiInputPanel from './MultiInputPanel'
@@ -215,6 +215,29 @@ export default function TMEditor() {
     link.click()
     URL.revokeObjectURL(url)
   }, [tm, positions])
+
+  useEffect(() => {
+    // @ts-ignore
+    // @ts-ignore
+    window.__phflap_handleSave = handleSave
+    // @ts-ignore
+    window.__phflap_getSaveData = () => {
+      const data = {
+        machine: tm,
+        positions: positions,
+        version: '1.0.0',
+        type: 'TM',
+        timestamp: new Date().toISOString()
+      }
+      return { filename: `turing-${Date.now()}.json`, json: JSON.stringify(data, null, 2) }
+    }
+    return () => {
+      // @ts-ignore
+      if (window.__phflap_handleSave === handleSave) delete window.__phflap_handleSave
+      // @ts-ignore
+      if (window.__phflap_getSaveData) delete window.__phflap_getSaveData
+    }
+  }, [handleSave])
 
   // Função para carregar máquina de Turing
   const handleLoad = useCallback(() => {
@@ -479,7 +502,7 @@ export default function TMEditor() {
 
                     {/* textos empilhados acima com caixas brancas */}
                     {loopTransitions.map((t, idx) => {
-                      const moveArrow = t.move === 'L' ? '←' : t.move === 'R' ? '→' : '•'
+                      const moveArrow = t.move === 'L' ? '⬅️' : t.move === 'R' ? '➡️' : '⏸️'
                       const label = `${t.read || 'λ'}→${t.write || 'λ'},${moveArrow}`
                       const labelOffsetY = idx * 20 // cada texto sobe 20px a mais
                       
@@ -525,7 +548,7 @@ export default function TMEditor() {
             {transitions.filter(t => t.from !== t.to).map((t) => {
               const isHovered = hoverTransition === t.key
               const isEditing = editingTransition === t.idx
-                const moveArrow = t.move === 'L' ? '←' : t.move === 'R' ? '→' : '•'
+                const moveArrow = t.move === 'L' ? '⬅️' : t.move === 'R' ? '➡️' : '⏸️'
               
               return (
                 <TransitionArrow

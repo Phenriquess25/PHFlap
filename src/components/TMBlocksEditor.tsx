@@ -1,5 +1,5 @@
 import { useTMBlocksStore, BLOCK } from '@state/tmBlocksStore'
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import MultiInputPanel from './MultiInputPanel'
 import { usePrompt } from './PromptModal'
 
@@ -246,6 +246,29 @@ export default function TMBlocksEditor() {
     link.click()
     URL.revokeObjectURL(url)
   }, [machine, positions])
+
+  // Expor handleSave globalmente para o prompt de fechamento do app
+  useEffect(() => {
+    // @ts-ignore - attaching for global use by App beforeunload
+    window.__phflap_handleSave = handleSave
+    // @ts-ignore
+    window.__phflap_getSaveData = () => {
+      const data = {
+        machine: machine,
+        positions: positions,
+        version: '1.0.0',
+        type: 'TM_BLOCKS',
+        timestamp: new Date().toISOString()
+      }
+      return { filename: `tm-blocks-${Date.now()}.json`, json: JSON.stringify(data, null, 2) }
+    }
+    return () => {
+      // @ts-ignore
+      if (window.__phflap_handleSave === handleSave) delete window.__phflap_handleSave
+      // @ts-ignore
+      if (window.__phflap_getSaveData) delete window.__phflap_getSaveData
+    }
+  }, [handleSave])
 
   // Função para carregar máquina de Turing com blocos
   const handleLoad = useCallback(() => {

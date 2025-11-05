@@ -1,5 +1,5 @@
 import { usePDAStore } from '@state/pdaStore'
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import MultiInputPanel from './MultiInputPanel'
 import { usePrompt } from './PromptModal'
 
@@ -266,6 +266,28 @@ export default function PDAEditor() {
     link.click()
     URL.revokeObjectURL(url)
   }, [machine, positions])
+
+  useEffect(() => {
+    // @ts-ignore
+    window.__phflap_handleSave = handleSave
+    // @ts-ignore
+    window.__phflap_getSaveData = () => {
+      const data = {
+        machine: machine,
+        positions: positions,
+        version: '1.0.0',
+        type: 'PDA',
+        timestamp: new Date().toISOString()
+      }
+      return { filename: `pda-${Date.now()}.json`, json: JSON.stringify(data, null, 2) }
+    }
+    return () => {
+      // @ts-ignore
+      if (window.__phflap_handleSave === handleSave) delete window.__phflap_handleSave
+      // @ts-ignore
+      if (window.__phflap_getSaveData) delete window.__phflap_getSaveData
+    }
+  }, [handleSave])
 
   // Função para carregar autômato de pilha
   const handleLoad = useCallback(() => {
