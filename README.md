@@ -135,6 +135,7 @@ Os arquivos otimizados estarão em `dist/`
    - **Clique direito**: Definir como inicial
 4. **Crie transições**:
    - Selecione um estado
+   - Clique "CTRL" e clicque no estado destino
    - Clique em "→ Criar Transição"
    - Clique no estado de destino
    - Digite o símbolo (ex: `0`, `ε`, `a/b`)
